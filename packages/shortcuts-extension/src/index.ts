@@ -11,7 +11,10 @@ import {
 } from '@jupyterlab/application';
 import { ISettingRegistry, SettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
-import { IFormComponentRegistry } from '@jupyterlab/ui-components';
+import {
+  IFormRenderer,
+  IFormRendererRegistry
+} from '@jupyterlab/ui-components';
 import { CommandRegistry } from '@lumino/commands';
 import {
   JSONExt,
@@ -34,7 +37,7 @@ function getExternalForJupyterLab(
   return {
     translator,
     getAllShortCutSettings: () =>
-      settingRegistry.reload(shortcutPluginLocation),
+      settingRegistry.load(shortcutPluginLocation, true),
     removeShortCut: (key: string) =>
       settingRegistry.remove(shortcutPluginLocation, key),
     createMenu: () => new Menu({ commands }),
@@ -76,13 +79,14 @@ function getExternalForJupyterLab(
  */
 const shortcuts: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlab/shortcuts-extension:shortcuts',
+  description: 'Adds the keyboard shortcuts editor.',
   requires: [ISettingRegistry],
-  optional: [ITranslator, IFormComponentRegistry],
+  optional: [ITranslator, IFormRendererRegistry],
   activate: async (
     app: JupyterFrontEnd,
     registry: ISettingRegistry,
     translator: ITranslator | null,
-    editorRegistry: IFormComponentRegistry | null
+    editorRegistry: IFormRendererRegistry | null
   ) => {
     const translator_ = translator ?? nullTranslator;
     const trans = translator_.load('jupyterlab');
@@ -91,12 +95,15 @@ const shortcuts: JupyterFrontEndPlugin<void> = {
     let loaded: { [name: string]: ISettingRegistry.IShortcut[] } = {};
 
     if (editorRegistry) {
-      editorRegistry.addRenderer('shortcuts', (props: any) => {
-        return renderShortCut({
-          external: getExternalForJupyterLab(registry, app, translator_),
-          ...props
-        });
-      });
+      const component: IFormRenderer = {
+        fieldRenderer: (props: any) => {
+          return renderShortCut({
+            external: getExternalForJupyterLab(registry, app, translator_),
+            ...props
+          });
+        }
+      };
+      editorRegistry.addRenderer(`${shortcuts.id}.shortcuts`, component);
     }
 
     /**
@@ -164,8 +171,13 @@ List of keyboard shortcuts:`,
           oldShortcuts === undefined ||
           !JSONExt.deepEqual(oldShortcuts, newShortcuts)
         ) {
+          // Empty the default values to avoid shortcut collisions.
           canonical = null;
-          await registry.reload(shortcuts.id);
+          const schema = registry.plugins[shortcuts.id]!.schema;
+          schema.properties!.shortcuts.default = [];
+
+          // Reload the settings.
+          await registry.load(shortcuts.id, true);
         }
       }
     });

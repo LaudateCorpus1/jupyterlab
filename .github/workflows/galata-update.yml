@@ -13,9 +13,15 @@ jobs:
     name: Update Galata References
     if: ${{ github.event.issue.pull_request && (contains(github.event.comment.body, 'please update galata snapshots') || contains(github.event.comment.body, 'please update snapshots')) }}
     timeout-minutes: 80
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
+      - name: React to the triggering comment
+        run: |
+          hub api repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions --raw-field 'content=+1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -43,12 +49,20 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           server_url: http-get://localhost:8888/lab
           test_folder: galata
+          artifact_name: updated-galata-snapshots
+          report_name: update-galata-report
+
+      - name: Comment back on the PR
+        run: |
+          hub api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments --raw-field 'body=Galata snapshots updated.'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   update-documentation-snapshots:
     name: Update Documentation Snapshots
     if: ${{ github.event.issue.pull_request && (contains(github.event.comment.body, 'please update documentation snapshots') || contains(github.event.comment.body, 'please update snapshots')) }}
     timeout-minutes: 80
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     # Python version is frozen through strategy.matrix.python-version
     # Python dependencies are frozen in the installation step
@@ -56,9 +70,15 @@ jobs:
     strategy:
       matrix:
         # Freeze Python version because it appears in console header
-        python-version: ['3.9.9']
+        python-version: ['3.10.6']
 
     steps:
+      - name: React to the triggering comment
+        run: |
+          hub api repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions --raw-field 'content=+1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Checkout JupyterLab
         uses: actions/checkout@v3
         with:
@@ -113,3 +133,11 @@ jobs:
           test_folder: core/galata
           start_server_script: start:doc
           update_script: test:doc:update
+          artifact_name: updated-documentation-snapshots
+          report_name: update-documentation-report
+
+      - name: Comment back on the PR
+        run: |
+          hub api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments --raw-field 'body=Documentation snapshots updated.'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

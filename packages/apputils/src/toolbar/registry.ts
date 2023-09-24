@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Jupyter Development Team.
+ * Distributed under the terms of the Modified BSD License.
+ */
+
 import {
   CommandToolbarButton,
   LabIcon,
@@ -6,6 +11,7 @@ import {
 import { CommandRegistry } from '@lumino/commands';
 import { Widget } from '@lumino/widgets';
 import { IToolbarWidgetRegistry, ToolbarRegistry } from '../tokens';
+import { ISignal, Signal } from '@lumino/signaling';
 
 /**
  * Concrete implementation of IToolbarWidgetRegistry interface
@@ -33,6 +39,13 @@ export class ToolbarWidgetRegistry implements IToolbarWidgetRegistry {
     ) => Widget
   ) {
     this._defaultFactory = factory;
+  }
+
+  /**
+   * A signal emitted when a factory widget has been added.
+   */
+  get factoryAdded(): ISignal<this, string> {
+    return this._factoryAdded;
   }
 
   /**
@@ -74,6 +87,7 @@ export class ToolbarWidgetRegistry implements IToolbarWidgetRegistry {
       this._widgets.set(widgetFactory, namespace);
     }
     namespace.set(toolbarItemName, factory);
+    this._factoryAdded.emit(toolbarItemName);
     return oldFactory;
   }
 
@@ -102,6 +116,7 @@ export class ToolbarWidgetRegistry implements IToolbarWidgetRegistry {
   ) => Widget;
   protected _widgets: Map<string, Map<string, (main: Widget) => Widget>> =
     new Map<string, Map<string, (main: Widget) => Widget>>();
+  protected _factoryAdded = new Signal<this, string>(this);
 }
 
 /**
@@ -128,6 +143,7 @@ export function createDefaultFactory(
           command: tId,
           args: tArgs,
           label: tLabel,
+          caption: tCaption,
           icon: tIcon
         } = toolbarItem;
         const id = tId ?? '';
@@ -141,7 +157,8 @@ export function createDefaultFactory(
           id,
           args,
           icon,
-          label
+          label,
+          caption: tCaption as string
         });
       }
       case 'spacer':

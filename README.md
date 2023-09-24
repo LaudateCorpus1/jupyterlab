@@ -1,16 +1,16 @@
 **[Installation](#installation)** |
-**[Documentation](http://jupyterlab.readthedocs.io)** |
+**[Documentation](https://jupyterlab.readthedocs.io)** |
 **[Contributing](#contributing)** |
 **[License](#license)** |
 **[Team](#team)** |
 **[Getting help](#getting-help)** |
 
-# [JupyterLab](http://jupyterlab.github.io/jupyterlab/)
+# [JupyterLab](https://jupyterlab.readthedocs.io)
 
 [![PyPI version](https://badge.fury.io/py/jupyterlab.svg)](https://badge.fury.io/py/jupyterlab)
-[![Downloads](https://pepy.tech/badge/jupyterlab/month)](https://pepy.tech/project/jupyterlab/month)
-[![Build Status](https://github.com/jupyterlab/jupyterlab/workflows/Linux%20Tests/badge.svg)](https://github.com/jupyterlab/jupyterlab/actions?query=branch%3Amaster+workflow%3A%22Linux+Tests%22)
-[![Build Status](https://github.com/jupyterlab/jupyterlab/workflows/Windows%20Tests/badge.svg)](https://github.com/jupyterlab/jupyterlab/actions?query=branch%3Amaster+workflow%3A%22Windows+Tests%22)
+[![Downloads](https://static.pepy.tech/badge/jupyterlab/month)](https://pepy.tech/project/jupyterlab)
+[![Build Status](https://github.com/jupyterlab/jupyterlab/workflows/Linux%20Tests/badge.svg)](https://github.com/jupyterlab/jupyterlab/actions?query=branch%3Amain+workflow%3A%22Linux+Tests%22)
+[![Build Status](https://github.com/jupyterlab/jupyterlab/workflows/Windows%20Tests/badge.svg)](https://github.com/jupyterlab/jupyterlab/actions?query=branch%3Amain+workflow%3A%22Windows+Tests%22)
 [![Documentation Status](https://readthedocs.org/projects/jupyterlab/badge/?version=stable)](http://jupyterlab.readthedocs.io/en/stable/)
 [![Crowdin](https://badges.crowdin.net/jupyterlab/localized.svg)](https://crowdin.com/project/jupyterlab)
 [![GitHub](https://img.shields.io/badge/issue_tracking-github-blue.svg)](https://github.com/jupyterlab/jupyterlab/issues)
@@ -18,7 +18,7 @@
 [![Gitter](https://img.shields.io/badge/social_chat-gitter-blue.svg)](https://gitter.im/jupyterlab/jupyterlab)
 [![Gitpod](https://img.shields.io/badge/gitpod_editor-open-blue.svg)](https://gitpod.io/#https://github.com/jupyterlab/jupyterlab)
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jupyterlab/jupyterlab-demo/7390762294552deb550b486928646705bbb24333?urlpath=lab/tree/demo)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jupyterlab/jupyterlab-demo/HEAD?urlpath=lab/tree/demo)
 
 An extensible environment for interactive and reproducible computing, based on the
 Jupyter Notebook and Architecture.
@@ -32,7 +32,7 @@ JupyterLab can be extended using [npm](https://www.npmjs.com/) packages
 that use our public APIs. The _prebuilt_ extensions can be distributed
 via [PyPI](https://pypi.org/search/?q=jupyterlab&o=-created&c=Framework+%3A%3A+Jupyter),
 conda, and other package managers. The _source_ extensions can be installed
-directly from npm (search for [jupyterlab-extension](https://www.npmjs.com/search?q=keywords:jupyterlab-extension)) but require additional build step.
+directly from npm (search for [jupyterlab-extension](https://www.npmjs.com/search?q=keywords:jupyterlab-extension)) but require an additional build step.
 You can also find JupyterLab extensions exploring GitHub topic [jupyterlab-extension](https://github.com/topics/jupyterlab-extension).
 To learn more about extensions, see the [user documentation](https://jupyterlab.readthedocs.io/en/latest/user/extensions.html).
 
@@ -100,7 +100,7 @@ We encourage you to ask questions on the [Discourse forum](https://discourse.jup
 
 ### Bug report
 
-To report a bug please read the [guidelines](https://jupyterlab.readthedocs.io/en/latest/getting_started/issue.html) and then open a [Github issue](https://github.com/jupyterlab/jupyterlab/issues/new?labels=bug%2C+status%3ANeeds+Triage&template=bug_report.md). To keep resolved issues self-contained, the [lock bot](https://github.com/apps/lock) will lock closed issues as resolved after a period of inactivity. If related discussion is still needed after an issue is locked, please open a new issue and reference the old issue.
+To report a bug please read the [guidelines](https://jupyterlab.readthedocs.io/en/latest/getting_started/issue.html) and then open a [Github issue](https://github.com/jupyterlab/jupyterlab/issues/new?labels=bug%2C+status%3ANeeds+Triage&template=bug_report.md). To keep resolved issues self-contained, the [lock bot](https://github.com/apps/lock) will lock closed issues as resolved after a period of inactivity. If a related discussion is still needed after an issue is locked, please open a new issue and reference the old issue.
 
 ### Feature request
 
@@ -123,7 +123,7 @@ JupyterLab follows the Jupyter [Community Guides](https://jupyter.readthedocs.io
 ### License
 
 JupyterLab uses a shared copyright model that enables all contributors to maintain the
-copyright on their contributions. All code is licensed under the terms of the revised [BSD license](https://github.com/jupyterlab/jupyterlab/blob/master/LICENSE).
+copyright on their contributions. All code is licensed under the terms of the revised [BSD license](https://github.com/jupyterlab/jupyterlab/blob/main/LICENSE).
 
 ### Team
 
@@ -136,7 +136,7 @@ JupyterLab's current maintainers are listed in alphabetical order, with affiliat
 - Eric Charles, Datalayer, (general development, extensions).
 - Frédéric Collonval, QuantStack (general development, extensions).
 - Martha Cryan, IBM (general development, extensions).
-- Afshin Darian, Two Sigma (co-creator, application/high-level architecture,
+- Afshin Darian, QuantStack (co-creator, application/high-level architecture,
   prolific contributions throughout the code base).
 - Vidar T. Fauske, JPMorgan Chase (general development, extensions).
 - Brian Granger, AWS (co-creator, strategy, vision, management, UI/UX design,
@@ -171,10 +171,10 @@ To be listed, please submit a pull request with your information.
 
 We have videoconference meetings every week where we discuss what we have been working on and get feedback from one another.
 
-Anyone is welcome to attend, if they would like to discuss a topic or just to listen in.
+Anyone is welcome to attend, if they would like to discuss a topic or just listen in.
 
-- When: Wednesdays [9AM Pacific Time](https://www.thetimezoneconverter.com/?t=9%3A00%20am&tz=San%20Francisco&)
+- When: Wednesdays [9:00 AM Pacific Time (USA)](https://www.thetimezoneconverter.com/?t=9%3A00%20am&tz=San%20Francisco&)
 - Where: [`jovyan` Zoom](https://zoom.us/my/jovyan?pwd=c0JZTHlNdS9Sek9vdzR3aTJ4SzFTQT09)
-- What: [Meeting notes](https://hackmd.io/Y7fBMQPSQ1C08SDGI-fwtg?both) - Notes are now taken on Binder using JupyterLab with RTC.
+- What: [Meeting notes](https://hackmd.io/Y7fBMQPSQ1C08SDGI-fwtg?both)
 
 > Notes are archived on [GitHub JupyterLab team compass](https://github.com/jupyterlab/team-compass/issues).

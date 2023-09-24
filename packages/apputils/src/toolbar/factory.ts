@@ -1,8 +1,13 @@
+/*
+ * Copyright (c) Jupyter Development Team.
+ * Distributed under the terms of the Modified BSD License.
+ */
+
 import { IObservableList, ObservableList } from '@jupyterlab/observables';
 import { ISettingRegistry, SettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, TranslationBundle } from '@jupyterlab/translation';
 import { Toolbar } from '@jupyterlab/ui-components';
-import { findIndex, toArray } from '@lumino/algorithm';
+import { findIndex } from '@lumino/algorithm';
 import { JSONExt, PartialJSONObject } from '@lumino/coreutils';
 import { Widget } from '@lumino/widgets';
 import { Dialog, showDialog } from '../dialog';
@@ -215,9 +220,13 @@ async function setToolbarItems(
         await displayInformation(trans);
       } else {
         if (newItems.length > 0) {
+          // Empty the default values to avoid toolbar settings collisions.
           canonical = null;
-          // This will trigger a settings.changed signal that will update the items
-          await registry.reload(pluginId);
+          const schema = registry.plugins[pluginId]!.schema;
+          schema.properties!.toolbar.default = [];
+
+          // Run again the transformations.
+          await registry.load(pluginId, true);
         }
       }
     }
@@ -294,8 +303,27 @@ export function createToolbarFactory(
       }
     };
 
+    const updateWidget = (
+      registry: IToolbarWidgetRegistry,
+      itemName: string
+    ) => {
+      const itemIndex = Array.from(items).findIndex(
+        item => item.name === itemName
+      );
+      if (itemIndex >= 0) {
+        toolbar.set(itemIndex, {
+          name: itemName,
+          widget: toolbarRegistry.createWidget(
+            factoryName,
+            widget,
+            items.get(itemIndex)
+          )
+        });
+      }
+    };
+
     const toolbar = new ObservableList<ToolbarRegistry.IToolbarItem>({
-      values: toArray(items).map(item => {
+      values: Array.from(items).map(item => {
         return {
           name: item.name,
           widget: toolbarRegistry.createWidget(factoryName, widget, item)
@@ -303,9 +331,14 @@ export function createToolbarFactory(
       })
     });
 
+    // Re-render the widget if a new factory has been added.
+    toolbarRegistry.factoryAdded.connect(updateWidget);
+
     items.changed.connect(updateToolbar);
+
     widget.disposed.connect(() => {
       items.changed.disconnect(updateToolbar);
+      toolbarRegistry.factoryAdded.disconnect(updateWidget);
     });
 
     return toolbar;
@@ -388,7 +421,7 @@ export function setToolbar(
               name => item.name === name
             );
             if (existingIndex >= 0) {
-              toArray(toolbar_.children())[existingIndex].parent = null;
+              Array.from(toolbar_.children())[existingIndex].parent = null;
             }
 
             toolbar_.insertItem(
@@ -403,7 +436,7 @@ export function setToolbar(
 
     updateToolbar(items, {
       newIndex: 0,
-      newValues: toArray(items),
+      newValues: Array.from(items),
       oldIndex: 0,
       oldValues: [],
       type: 'add'

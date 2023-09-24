@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Jupyter Development Team.
+# Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
 # Generate a GitHub token at https://github.com/settings/tokens
@@ -26,7 +26,7 @@ ranges = {
     "2.1": "origin/2.1.x --not origin/2.0.x",
     "2.2": "origin/2.2.x --not origin/2.1.x",
     # 6507205805 is a commit in the debugger ancestor tree before merging
-    "3.0": "origin/master ^origin/2.2.x ^6507205805",
+    "3.0": "origin/main ^origin/2.2.x ^6507205805",
 }
 
 try:
@@ -35,27 +35,27 @@ except KeyError:
     print(
         "Error: set the environment variable GITHUB_TOKEN to a GitHub authentication token (see https://github.com/settings/tokens)"
     )
-    exit(1)
+    sys.exit(1)
 
-if len(sys.argv) != 2:
+if len(sys.argv) != 2:  # noqa
     print("Error: exactly one argument expected, the milestone.")
-    exit(1)
+    sys.exit(1)
 
 MILESTONE = sys.argv[1]
 
 if MILESTONE not in ranges:
     print(
-        "Error: I do not know about milestone %r. Possible milestones are %r"
-        % (MILESTONE, list(ranges.keys()))
+        f"Error: I do not know about milestone {MILESTONE!r}. Possible milestones are {list(ranges.keys())!r}"
     )
-    exit(1)
+    sys.exit(1)
 
 
 out = subprocess.run(
-    "git log {} --format='%H,%cE,%s'".format(ranges[MILESTONE]),
-    shell=True,
+    f"git log {ranges[MILESTONE]} --format='%H,%cE,%s'",
+    shell=True,  # noqa S602
     encoding="utf8",
     stdout=subprocess.PIPE,
+    check=True,
 )
 commits = {i[0]: (i[1], i[2]) for i in (x.split(",", 2) for x in out.stdout.splitlines())}
 
@@ -102,19 +102,19 @@ large_prs = []
 cursor = None
 while True:
     json["variables"]["cursor"] = cursor
-    r = requests.post(url=url, json=json, headers=headers)
+    r = requests.post(url=url, json=json, headers=headers, timeout=120)
     results = r.json()["data"]["search"]
     total_prs = results["issueCount"]
 
     pr_list = results["nodes"]
     for pr in pr_list:
-        if pr["commits"]["totalCount"] > 100:
+        if pr["commits"]["totalCount"] > 100:  # noqa
             large_prs.append(pr["number"])
             continue
             # TODO fetch commits
         prs[pr["number"]] = {
             "mergeCommit": pr["mergeCommit"]["oid"],
-            "commits": set(i["commit"]["oid"] for i in pr["commits"]["nodes"]),
+            "commits": {i["commit"]["oid"] for i in pr["commits"]["nodes"]},
         }
 
     has_next_page = results["pageInfo"]["hasNextPage"]
@@ -156,9 +156,9 @@ for prnumber in large_prs:
     prjson["variables"]["pr"] = prnumber
     pr_commits = set()
     while True:
-        r = requests.post(url=url, json=prjson, headers=headers)
+        r = requests.post(url=url, json=prjson, headers=headers, timeout=120)
         pr = r.json()["data"]["repository"]["pullRequest"]
-        assert pr["number"] == prnumber
+        assert pr["number"] == prnumber  # noqa
         total_commits = pr["commits"]["totalCount"]
         pr_commits.update(i["commit"]["oid"] for i in pr["commits"]["nodes"])
         has_next_page = results["pageInfo"]["hasNextPage"]
@@ -177,7 +177,7 @@ for prnumber in large_prs:
 
 
 # Check we got all PRs
-assert len(prs) == total_prs
+assert len(prs) == total_prs  # noqa
 
 # Reverse dictionary
 commits_to_prs = {}
@@ -228,10 +228,10 @@ if len(notfound):
     print(
         """The following commits are not included in any PR on this milestone.
 This probably means the commit's PR needs to be assigned to this milestone,
-or the commit was pushed to master directly.
+or the commit was pushed to main directly.
 """
     )
-    print("\n".join("%s %s %s" % (c, commits[c][0], commits[c][1]) for c in notfound))
+    print("\n".join(f"{c} {commits[c][0]} {commits[c][1]}" for c in notfound))
     prs_to_check = [
         c
         for c in notfound
@@ -243,7 +243,7 @@ or the commit was pushed to master directly.
             "Try checking these PRs. They probably should be in the milestone, but probably aren't:"
         )
         print()
-        print("\n".join("%s %s" % (c, commits[c][1]) for c in prs_to_check))
+        print("\n".join(f"{c} {commits[c][1]}" for c in prs_to_check))
 else:
     print(
         "Congratulations! All commits in the commit history are included in some PR in this milestone."

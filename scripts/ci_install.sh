@@ -5,6 +5,13 @@
 set -ex
 set -o pipefail
 
+# use a single global cache dir
+export YARN_ENABLE_GLOBAL_CACHE=1
+
+# display verbose output for pkg builds run during `jlpm install`
+export YARN_ENABLE_INLINE_BUILDS=1
+
+
 # Building should work without yarn installed globally, so uninstall the
 # global yarn installed by default.
 if [ $OSTYPE == "Linux" ]; then
@@ -23,9 +30,10 @@ git config --global user.email foo@bar.com
 pip install -q --upgrade pip --user
 pip --version
 # Show a verbose install if the install fails, for debugging
-pip install -e ".[test]" || pip install -v -e ".[test]"
-jlpm versions
-jlpm config current
+pip install -e ".[dev,test]" || pip install -v -e ".[dev,test]"
+yarn --version
+node -p process.versions
+jlpm config
 
 if [[ $GROUP == nonode ]]; then
     # Build the wheel
@@ -36,9 +44,4 @@ if [[ $GROUP == nonode ]]; then
     sudo rm -rf $(which node)
     sudo rm -rf $(which node)
     ! node
-fi
-
-# The debugger tests require a kernel that supports debugging
-if [[ $GROUP == js-debugger ]]; then
-    pip install xeus-python">=0.9.0,<0.10.0"
 fi

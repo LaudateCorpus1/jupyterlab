@@ -72,7 +72,7 @@ display({
         }
     }
 }, metadata={
-    "application/vnd.vegalite.v2+json": {
+    "application/vnd.vegalite.v3+json": {
         "embed_options": {
             "actions": False
         }
@@ -102,4 +102,4 @@ To render a `.vl`, `.vg`, `vl.json` or `.vg.json` file, simply open it:
 
 ## Development
 
-See the [JupyterLab Contributor Documentation](https://github.com/jupyterlab/jupyterlab/blob/master/CONTRIBUTING.md).
+See the [JupyterLab Contributor Documentation](https://github.com/jupyterlab/jupyterlab/blob/main/CONTRIBUTING.md).

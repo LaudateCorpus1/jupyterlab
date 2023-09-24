@@ -1,3 +1,6 @@
+.. Copyright (c) Jupyter Development Team.
+.. Distributed under the terms of the Modified BSD License.
+
 .. _developer-extension-points:
 
 Common Extension Points
@@ -11,13 +14,23 @@ Following the list of core tokens is a guide for using some of JupyterLab's most
 However, it is not an exhaustive account of how to extend the application components,
 and more detailed descriptions of their public APIs may be found in the
 `JupyterLab <../api/index.html>`__ and
-`Lumino <https://jupyterlab.github.io/lumino/index.html>`__ API documentation.
+`Lumino <https://lumino.readthedocs.io/>`__ API documentation.
 
 .. contents:: Table of contents
     :local:
     :depth: 1
 
 .. _core_tokens:
+
+Core Plugins
+------------
+
+The core packages of JupyterLab provide the following plugins. They can be
+enabled or disabled using the command ``jupyter labextension enable <plugin-id>`` or
+``jupyter labextension disable <plugin-id>``.
+
+.. include:: plugins_list.rst
+   :parser: myst_parser.sphinx_
 
 Core Tokens
 -----------
@@ -26,113 +39,8 @@ The core packages of JupyterLab provide many services for plugins. The tokens
 for these services are listed here, along with short descriptions of when you
 might want to use the services in your extensions.
 
-- ``@jupyterlab/application:IConnectionLost``: A service for invoking the dialog shown
-  when JupyterLab has lost its connection to the server. Use this if, for some reason,
-  you want to bring up the "connection lost" dialog under new circumstances.
-- ``@jupyterlab/application:IInfo``: A service providing metadata about the current
-  application, including disabled extensions and whether dev mode is enabled.
-- ``@jupyterlab/application:IPaths``: A service providing information about various
-  URLs and server paths for the current application. Use this service if you want to
-  assemble URLs to use the JupyterLab REST API.
-- ``@jupyterlab/application:ILabStatus``: A service for interacting with the application busy/dirty
-  status. Use this if you want to set the application "busy" favicon, or to set
-  the application "dirty" status, which asks the user for confirmation before leaving the application page.
-- ``@jupyterlab/application:ILabShell``: A service for interacting with the JupyterLab shell.
-  The top-level ``application`` object also has a reference to the shell, but it has a restricted
-  interface in order to be agnostic to different shell implementations on the application.
-  Use this to get more detailed information about currently active widgets and layout state.
-- ``@jupyterlab/application:ILayoutRestorer``: A service providing application layout
-  restoration functionality. Use this to have your activities restored across
-  page loads.
-- ``@jupyterlab/application:IMimeDocumentTracker``: A widget tracker for documents
-  rendered using a mime renderer extension. Use this if you want to list and interact
-  with documents rendered by such extensions.
-- ``@jupyterlab/application:IRouter``: The URL router used by the application.
-  Use this to add custom URL-routing for your extension (e.g., to invoke
-  a command if the user navigates to a sub-path).
-- ``@jupyterlab/apputils:ICommandPalette``: A service for the application command palette
-  in the left panel. Use this to add commands to the palette.
-- ``@jupyterlab/apputils:ISplashScreen``: A service for the splash screen for the application.
-  Use this if you want to show the splash screen for your own purposes.
-- ``@jupyterlab/apputils:IThemeManager``: A service for the theme manager for the application. This is used primarily in theme extensions to register new themes.
-- ``@jupyterlab/apputils:IToolbarWidgetRegistry``: A registry for toolbar widgets. Require this
-  if you want to build the toolbar dynamically from a data definition (stored in settings for example).
-- ``@jupyterlab/apputils:IWindowResolver``: A service for a window resolver for the
-  application. JupyterLab workspaces are given a name, which are determined using
-  the window resolver. Require this if you want to use the name of the current workspace.
-- ``@jupyterlab/codeeditor:IEditorServices``: A service for the text editor provider
-  for the application. Use this to create new text editors and host them in your
-  UI elements.
-- ``@jupyterlab/completer:ICompletionProviderManager``: A service for the completion manager
-  for the application. Use this to allow your extension to invoke a completer.
-- ``@jupyterlab/console:IConsoleTracker``: A widget tracker for code consoles.
-  Use this if you want to be able to iterate over and interact with code consoles
-  created by the application.
-- ``@jupyterlab/console:IContentFactory``: A factory object that creates new code
-  consoles. Use this if you want to create and host code consoles in your own UI elements.
-- ``@jupyterlab/docmanager:IDocumentManager``: A service for the manager for all
-  documents used by the application. Use this if you want to open and close documents,
-  create and delete files, and otherwise interact with the file system.
-- ``@jupyterlab/docprovider:IDocumentProviderFactory``: A factory object that creates new providers for
-  shared documents. Use this if you want to create a provider for a new shared document.
-- ``@jupyterlab/documentsearch:ISearchProviderRegistry``: A service for a registry of search
-  providers for the application. Plugins can register their UI elements with this registry
-  to provide find/replace support.
-- ``@jupyterlab/filebrowser:IFileBrowserFactory``: A factory object that creates file browsers.
-  Use this if you want to create your own file browser (e.g., for a custom storage backend),
-  or to interact with other file browsers that have been created by extensions.
-- ``@jupyterlab/fileeditor:IEditorTracker``: A widget tracker for file editors.
-  Use this if you want to be able to iterate over and interact with file editors
-  created by the application.
-- ``@jupyterlab/htmlviewer:IHTMLViewerTracker``: A widget tracker for rendered HTML documents.
-  Use this if you want to be able to iterate over and interact with HTML documents
-  viewed by the application.
-- ``@jupyterlab/imageviewer:IImageTracker``: A widget tracker for images.
-  Use this if you want to be able to iterate over and interact with images
-  viewed by the application.
-- ``@jupyterlab/inspector:IInspector``: A service for adding contextual help to widgets (visible using "Show Contextual Help" from the Help menu).
-  Use this to hook into the contextual help system in your extension.
-- ``@jupyterlab/launcher:ILauncher``: A service for the application activity launcher.
-  Use this to add your extension activities to the launcher panel.
-- ``@jupyterlab/mainmenu:IMainMenu``: A service for the main menu bar for the application.
-  Use this if you want to add your own menu items or provide implementations for standardized menu items for specific activities.
-- ``@jupyterlab/markdownviewer:IMarkdownViewerTracker``: A widget tracker for markdown
-  document viewers. Use this if you want to iterate over and interact with rendered markdown documents.
-- ``@jupyterlab/notebook:INotebookTools``: A service for the ``Notebook Tools`` panel in the
-  right sidebar. Use this to add your own functionality to the panel.
-- ``@jupyterlab/notebook:IContentFactory``: A factory object that creates new notebooks.
-  Use this if you want to create and host notebooks in your own UI elements.
-- ``@jupyterlab/notebook:INotebookTracker``: A widget tracker for notebooks.
-  Use this if you want to be able to iterate over and interact with notebooks
-  created by the application.
-- ``@jupyterlab/rendermime:IRenderMimeRegistry``: A service for the rendermime registry
-  for the application. Use this to create renderers for various mime-types in your extension. Many times it will be easier to create a `mime renderer extension <#mime-renderer-extensions>`__ rather than using this service directly.
-- ``@jupyterlab/rendermime:ILatexTypesetter``: A service for the LaTeX typesetter for the
-  application. Use this if you want to typeset math in your extension.
-- ``@jupyterlab/rendermime:IMarkdownParser``: A service for rendering markdown syntax as HTML content.
-- ``@jupyterlab/settingeditor:ISettingEditorTracker``: A widget tracker for setting editors.
-  Use this if you want to be able to iterate over and interact with setting editors
-  created by the application.
-- ``@jupyterlab/settingregistry:ISettingRegistry``: A service for the JupyterLab settings system.
-  Use this if you want to store settings for your application.
-  See :ref:`schemaDir` for more information.
-- ``@jupyterlab/statedb:IStateDB``: A service for the JupyterLab state database.
-  Use this if you want to store data that will persist across page loads.
-  See `state database <#state-database>`__ for more information.
-- ``@jupyterlab/statusbar:IStatusBar``: A service for the status bar on the application.
-  Use this if you want to add new status bar items.
-- ``@jupyterlab/terminal:ITerminalTracker``: A widget tracker for terminals.
-  Use this if you want to be able to iterate over and interact with terminals
-  created by the application.
-- ``@jupyterlab/tooltip:ITooltipManager``: A service for the tooltip manager for the application.
-  Use this to allow your extension to invoke a tooltip.
-- ``@jupyterlab/user:ICurrentUser``: A service for the current user information.
-  Use this if you want to access to the identity of the current connected user.
-- ``@jupyterlab/user:IUserMenu``: A service for the user menu on the application.
-  Use this if you want to add new items to the user menu.
-- ``@jupyterlab/vdom:IVDOMTracker``: A widget tracker for virtual DOM (VDOM) documents.
-  Use this to iterate over and interact with VDOM document instances created by the application.
-
+.. include:: tokens_list.rst
+   :parser: myst_parser.sphinx_
 
 
 Commands
@@ -183,7 +91,7 @@ a string value or a function that returns a string value.
 
 There are several more options which can be passed into the command registry when
 adding new commands. These are documented
-`here <https://jupyterlab.github.io/lumino/commands/interfaces/commandregistry.icommandoptions.html>`__.
+`here <https://lumino.readthedocs.io/en/latest/api/interfaces/commands.CommandRegistry.ICommandOptions.html>`__.
 
 After a command has been added to the application command registry
 you can add them to various places in the application user interface,
@@ -272,7 +180,7 @@ where ``menuItem`` definition is:
 
 
 The same example using the API is shown below. See the Lumino `docs
-<https://jupyterlab.github.io/lumino/widgets/interfaces/contextmenu.iitemoptions.html>`__
+<https://lumino.readthedocs.io/en/latest/api/interfaces/widgets.ContextMenu.IItemOptions.html>`__
 for the item creation options.
 
 .. code:: typescript
@@ -304,7 +212,7 @@ Alternatively, you can use a 'contextmenu' event listener and
 call ``event.stopPropagation`` to prevent the application context menu
 handler from being called (it is listening in the bubble phase on the
 ``document``). At this point you could show your own Lumino
-`contextMenu <https://jupyterlab.github.io/lumino/widgets/classes/contextmenu.html>`__,
+`contextMenu <https://lumino.readthedocs.io/en/latest/api/modules/widgets.ContextMenu.html>`__,
 or simply stop propagation and let the system context menu be shown.
 This would look something like the following in a ``Widget`` subclass:
 
@@ -362,7 +270,7 @@ browser supports overriding the behavior of this item.
        },
        isVisible: () =>
          tracker.currentWidget &&
-         toArray(tracker.currentWidget.selectedItems()).length === 1,
+         Array.from(tracker.currentWidget.selectedItems()).length === 1,
        iconClass: 'jp-MaterialIcon jp-LinkIcon',
        label: 'Copy Shareable Link'
      });
@@ -405,7 +313,7 @@ the shortcut handler propagates up the DOM tree from the focused element
 and tests each element against the registered selectors. If a match is found,
 then that command is executed with the provided ``args``.
 Full documentation for the options for ``addKeyBinding`` can be found
-`here <https://jupyterlab.github.io/lumino/commands/interfaces/commandregistry.ikeybindingoptions.html>`__.
+`here <https://lumino.readthedocs.io/en/latest/api/interfaces/commands.CommandRegistry.IKeyBindingOptions.html>`__.
 
 JupyterLab also provides integration with its settings system for keyboard shortcuts.
 Your extension can provide a settings schema with a ``jupyter.lab.shortcuts`` key,
@@ -448,7 +356,7 @@ This requires you to define a keyboard shortcut for ``apputils:run-all-enabled``
 
 In this example ``my-command-1`` and ``my-command-2`` are passed in ``args``
 of ``apputils:run-all-enabled`` command as ``commands`` list.
-You can optionally pass the command arguemnts of ``my-command-1`` and ``my-command-2`` in ``args``
+You can optionally pass the command arguments of ``my-command-1`` and ``my-command-2`` in ``args``
 of ``apputils:run-all-enabled`` command as ``args`` list.
 
 Launcher
@@ -475,7 +383,7 @@ Jupyter Front-End Shell
 -----------------------
 
 The Jupyter front-end
-`shell <../api/interfaces/application.jupyterfrontend.ishell.html>`__
+`shell <../api/interfaces/application.JupyterFrontEnd.IShell.html>`__
 is used to add and interact with content in the application. The ``IShell``
 interface provides an ``add()`` method for adding widgets to the application.
 In JupyterLab, the application shell consists of:
@@ -651,7 +559,7 @@ Adding a New Menu
 ~~~~~~~~~~~~~~~~~
 
 To add a new menu to the menu bar, you need to create a new
-`Lumino menu <https://jupyterlab.github.io/lumino/widgets/classes/menu.html>`__.
+`Lumino menu <https://lumino.readthedocs.io/en/latest/api/classes/widgets.Menu-1.html>`__.
 
 You can then add commands to the menu in a similar way to the command palette,
 and add that menu to the main menu bar:
@@ -713,23 +621,12 @@ Here is an example of using the ``closeAndCleaners`` semantic menu item:
 .. code:: typescript
 
     mainMenu.fileMenu.closeAndCleaners.add({
-      tracker,
-      action: 'Shutdown',
-      name: 'My Activity',
-      closeAndCleanup: current => {
-        current.close();
-        return current.shutdown();
-      }
+      id: 'notebook:close-and-shutdown',
+      isEnabled: (w: Widget) => tracker.currentWidget !== null && tracker.has(w)
     });
 
 In this example, ``tracker`` is a :ref:`widget-tracker`, which allows the menu
-item to determine whether to delegate the menu command to your activity,
-``name`` is a name given to your activity in the menu label,
-``action`` is a verb given to the cleanup operation in the menu label,
-and ``closeAndCleanup`` is the actual function that performs the cleanup operation.
-So if the current application activity is held in the ``tracker``,
-then the menu item will show ``Shutdown My Activity``, and delegate to the
-``closeAndCleanup`` function that was provided.
+item to determine whether to delegate the menu command to your activity, and ``id`` is a the command identifier.
 
 More examples for how to register semantic menu items are found throughout the JupyterLab code base.
 The available semantic menu items are:
@@ -865,7 +762,7 @@ mapping. For example for the notebook panel:
        { "name": "restart", "command": "kernelmenu:restart", "rank": 32 },
        {
          "name": "restart-and-run",
-         "command": "runmenu:restart-and-run-all",
+         "command": "notebook:restart-run-all",
          "rank": 33 // The default rank is 50
        },
        { "name": "cellType", "rank": 40 },
@@ -1026,3 +923,98 @@ a plugin:
         return foo;
       }
     };
+
+LSP Features
+--------------
+
+JupyterLab provides an infrastructure to communicate with the language servers. If the LSP services are activated and users have language servers installed, JupyterLab will start the language servers for the language of the opened notebook or file. Extension authors can access the virtual documents and the associated LSP connection of opened document by requiring the ``ILSPDocumentConnectionManager`` token from ``@jupyterlab/lsp``.
+
+Here is an example for making requests to the language server.
+
+.. code:: typescript
+
+  const plugin: JupyterFrontEndPlugin<void> = {
+    id,
+    autoStart: true,
+    requires: [ILSPDocumentConnectionManager],
+    activate: async (app: JupyterFrontEnd, manager: ILSPDocumentConnectionManager): Promise<void> => {
+
+      // Get the path to the opened notebook of file
+      const path = ...
+
+      // Get the widget adapter of opened document
+      const adapter = manager.adapters.get(path);
+      if (!adapter) {
+        return
+      }
+      // Get the associated virtual document of the opened document
+      const virtualDocument = adapter.virtualDocument;
+
+      // Get the LSP connection of the virtual document.
+      const connection = manager.connections.get(virtualDocument.uri);
+      ...
+      // Send completion request to the language server
+      const response = await connection.clientRequests['textDocument/completion'].request(params);
+      ...
+    }
+  };
+
+Occasionally, LSP extensions include a CodeMirror extension to modify the code editor. In those cases, you can follow this example:
+
+.. code:: typescript
+
+  const renamePlugin: JupyterFrontEndPlugin<void> = {
+    id,
+    autoStart: true,
+    requires: [ILSPDocumentConnectionManager, ILSPFeatureManager, IWidgetLSPAdapterTracker],
+    activate: (app: JupyterFrontEnd, connectionManager: ILSPDocumentConnectionManager, featureManager: ILSPFeatureManager, tracker: IWidgetLSPAdapterTracker) => {
+      const FEATURE_ID = "rename_symbol";
+      const extensionFactory: EditorAdapter.ILSPEditorExtensionFactory = {
+        name: FEATURE_ID,
+        factory: (options) =>  {
+          const { editor, widgetAdapter } = options;
+
+          // Get the editor
+          const ceEditor: CodeEditor.IEditor | null = editor.getEditor();
+          if (!ceEditor) {
+            return null;
+          }
+
+          // Get the associated virtual document of the opened document
+          if (!widgetAdapter.virtualDocument) {
+            return null;
+          }
+
+          // Get the LSP connection of the virtual document.
+          const connection = connectionManager.connections.get(widgetAdapter.virtualDocument.uri);
+          if (!connection || !connection.provides('renameProvider')) {
+            return null;
+          }
+
+          // Create a CodeMirror extension that listens for double click, gets the
+          // selected code and makes a LSP request to rename it and prints the results.
+          const ext = EditorView.domEventHandlers({ dblclick: (e, view) => {
+            const range = ceEditor.getSelection();
+              const res = connection.clientRequests['textDocument/rename'].request({
+                newName: "test",
+                position: { line: range.start.line, character: range.start.column },
+                textDocument: { uri: widgetAdapter.virtualDocument!.uri }
+              });
+
+              res.then(value => {
+                console.debug(value);
+              }).catch(e => console.error);
+          }});
+
+          // Wrap the CodeMirror extension in the extension registry object.
+          return EditorExtensionRegistry.createImmutableExtension(ext);
+        }
+      }
+
+      // Register the extension with the LSP feature
+      featureManager.register({
+        id: FEATURE_ID,
+        extensionFactory
+      });
+    }
+  };

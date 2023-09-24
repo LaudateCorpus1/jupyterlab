@@ -2,9 +2,9 @@
 
 Javascript client for the Jupyter services REST APIs
 
-[API Docs](http://jupyterlab.github.io/jupyterlab/)
+[API Docs](https://jupyterlab.readthedocs.io/en/latest/api/)
 
-[REST API Docs](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/jupyter/notebook/master/notebook/services/api/api.yaml)
+[REST API Docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/jupyter-server/jupyter_server/main/jupyter_server/services/api/api.yaml)
 
 Note: All functions and classes using the REST API allow a `serverSettings`
 parameter to configure requests.
@@ -17,11 +17,12 @@ can be used to polyfill browsers that do not support the `fetch` API.
 **Prerequisites**
 
 - [node](http://nodejs.org/)
-- [python](https://www.anaconda.com/distribution/)
+- Python, e.g. via [conda](https://www.anaconda.com/download)
 
 ```bash
 npm install --save @jupyterlab/services
-conda install notebook  # notebook 4.3+ required
+conda install jupyter-server # jupyter-server 2.0+ is recommended
+# or `pip install jupyter-server`
 ```
 
 ## Source Build
@@ -71,14 +72,14 @@ This can be as a `<script>` tag in the browser or by using the `requirejs`
 package in node (`npm install requirejs` and setting
 `global.requirejs = require('requirejs');`).
 
-## Starting the Notebook Server
+## Starting the Jupyter Server
 
 Follow the package install instructions first.
 
-The library requires a running Jupyter Notebook server, launched as:
+The library requires a running Jupyter Server, launched as:
 
 ```bash
-jupyter notebook
+jupyter server
 ```
 
 or
@@ -101,7 +102,7 @@ See `examples/node` for an example of using an ES5 node script.
 
 ## Usage Examples
 
-**Note:** This package is compiled to ES2017 JavaScript syntax from
+**Note:** This package is compiled to ES2018 JavaScript syntax from
 TypeScript. Here are some examples of using parts of this package. See the
 other `examples` subdirectories for more examples.
 

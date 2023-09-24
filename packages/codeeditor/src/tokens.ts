@@ -11,7 +11,10 @@ import { IEditorMimeTypeService } from './mimetype';
  * Code editor services token.
  */
 export const IEditorServices = new Token<IEditorServices>(
-  '@jupyterlab/codeeditor:IEditorServices'
+  '@jupyterlab/codeeditor:IEditorServices',
+  `A service for the text editor provider
+  for the application. Use this to create new text editors and host them in your
+  UI elements.`
 );
 
 /**
@@ -33,7 +36,8 @@ export interface IEditorServices {
  * Code editor cursor position token.
  */
 export const IPositionModel = new Token<IPositionModel>(
-  '@jupyterlab/codeeditor:IPositionModel'
+  '@jupyterlab/codeeditor:IPositionModel',
+  `A service to handle an code editor cursor position.`
 );
 
 /**
@@ -47,7 +51,7 @@ export interface IPositionModel {
    * associated editor if it can or null otherwise.
    */
   addEditorProvider: (
-    provider: (widget: Widget | null) => CodeEditor.IEditor | null
+    provider: (widget: Widget | null) => Promise<CodeEditor.IEditor | null>
   ) => void;
 
   /**

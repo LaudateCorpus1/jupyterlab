@@ -3,15 +3,14 @@
 
 import { CodeEditor } from '@jupyterlab/codeeditor';
 import { Text } from '@jupyterlab/coreutils';
-import { IObservableString } from '@jupyterlab/observables';
+import { ISharedText, SourceChange } from '@jupyter/ydoc';
 import { IDataConnector } from '@jupyterlab/statedb';
 import { LabIcon } from '@jupyterlab/ui-components';
-import { ReadonlyJSONObject } from '@lumino/coreutils';
 import { IDisposable } from '@lumino/disposable';
 import { Message, MessageLoop } from '@lumino/messaging';
 import { Signal } from '@lumino/signaling';
 
-import { IConnectorProxy } from './tokens';
+import { CompletionTriggerKind, IProviderReconciliator } from './tokens';
 import { Completer } from './widget';
 
 /**
@@ -35,7 +34,7 @@ export class CompletionHandler implements IDisposable {
     this.completer = options.completer;
     this.completer.selected.connect(this.onCompletionSelected, this);
     this.completer.visibilityChanged.connect(this.onVisibilityChanged, this);
-    this._connector = options.connector;
+    this._reconciliator = options.reconciliator;
   }
 
   /**
@@ -43,8 +42,8 @@ export class CompletionHandler implements IDisposable {
    */
   readonly completer: Completer;
 
-  set connector(connector: IConnectorProxy) {
-    this._connector = connector;
+  set reconciliator(reconciliator: IProviderReconciliator) {
+    this._reconciliator = reconciliator;
   }
 
   /**
@@ -67,7 +66,7 @@ export class CompletionHandler implements IDisposable {
       editor.host.classList.remove(COMPLETER_ENABLED_CLASS);
       editor.host.classList.remove(COMPLETER_ACTIVE_CLASS);
       model.selections.changed.disconnect(this.onSelectionsChanged, this);
-      model.value.changed.disconnect(this.onTextChanged, this);
+      model.sharedModel.changed.disconnect(this.onTextChanged, this);
     }
 
     // Reset completer state.
@@ -81,7 +80,7 @@ export class CompletionHandler implements IDisposable {
       const model = editor.model;
       this._enabled = false;
       model.selections.changed.connect(this.onSelectionsChanged, this);
-      model.value.changed.connect(this.onTextChanged, this);
+      model.sharedModel.changed.connect(this.onTextChanged, this);
       // On initial load, manually check the cursor position.
       this.onSelectionsChanged();
     }
@@ -144,9 +143,7 @@ export class CompletionHandler implements IDisposable {
     position: CodeEditor.IPosition
   ): Completer.ITextState {
     return {
-      text: editor.model.value.text,
-      lineHeight: editor.lineHeight,
-      charWidth: editor.charWidth,
+      text: editor.model.sharedModel.getSource(),
       line: position.line,
       column: position.column
     };
@@ -192,7 +189,10 @@ export class CompletionHandler implements IDisposable {
 
     const editor = this._editor;
     if (editor) {
-      this._makeRequest(editor.getCursorPosition()).catch(reason => {
+      this._makeRequest(
+        editor.getCursorPosition(),
+        CompletionTriggerKind.Invoked
+      ).catch(reason => {
         console.warn('Invoke request bailed', reason);
       });
     }
@@ -283,10 +283,10 @@ export class CompletionHandler implements IDisposable {
   /**
    * Handle a text changed signal from an editor.
    */
-  protected onTextChanged(
-    str: IObservableString,
-    changed: IObservableString.IChangedArgs
-  ): void {
+  protected async onTextChanged(
+    str: ISharedText,
+    changed: SourceChange
+  ): Promise<void> {
     const model = this.completer.model;
     if (!model || !this._enabled) {
       return;
@@ -299,12 +299,16 @@ export class CompletionHandler implements IDisposable {
     }
     if (
       this._autoCompletion &&
-      this._connector.shouldShowContinuousHint(
+      this._reconciliator.shouldShowContinuousHint &&
+      (await this._reconciliator.shouldShowContinuousHint(
         this.completer.isVisible,
         changed
-      )
+      ))
     ) {
-      void this._makeRequest(editor.getCursorPosition());
+      void this._makeRequest(
+        editor.getCursorPosition(),
+        CompletionTriggerKind.TriggerCharacter
+      );
     }
     const { start, end } = editor.getSelection();
     if (start.column !== end.column || start.line !== end.line) {
@@ -337,42 +341,34 @@ export class CompletionHandler implements IDisposable {
   /**
    * Make a completion request.
    */
-  private _makeRequest(position: CodeEditor.IPosition): Promise<void> {
+  private _makeRequest(
+    position: CodeEditor.IPosition,
+    trigger: CompletionTriggerKind
+  ): Promise<void> {
     const editor = this.editor;
 
     if (!editor) {
       return Promise.reject(new Error('No active editor'));
     }
 
-    const text = editor.model.value.text;
+    const text = editor.model.sharedModel.getSource();
     const offset = Text.jsIndexToCharIndex(editor.getOffsetAt(position), text);
     const state = this.getState(editor, position);
     const request: CompletionHandler.IRequest = { text, offset };
-    return this._connector
-      .fetch(request)
-      .then(replies => {
-        let start = 0;
-        let end = 0;
-        let skip = false;
-        let items: CompletionHandler.ICompletionItem[] = [];
-        for (const data of replies) {
-          if (data) {
-            items = items.concat(data.items);
-            if (!skip) {
-              start = data.start;
-              end = data.end;
-              skip = true;
-            }
-          }
+    return this._reconciliator
+      .fetch(request, trigger)
+      .then(reply => {
+        if (!reply) {
+          return;
         }
 
-        const model = this._updateModel(state, start, end);
+        const model = this._updateModel(state, reply.start, reply.end);
         if (!model) {
           return;
         }
 
         if (model.setCompletionItems) {
-          model.setCompletionItems(items);
+          model.setCompletionItems(reply.items);
         }
       })
       .catch(p => {
@@ -405,7 +401,7 @@ export class CompletionHandler implements IDisposable {
     return model;
   }
 
-  private _connector: IConnectorProxy;
+  private _reconciliator: IProviderReconciliator;
   private _editor: CodeEditor.IEditor | null | undefined = null;
   private _enabled = false;
   private _isDisposed = false;
@@ -426,17 +422,9 @@ export namespace CompletionHandler {
     completer: Completer;
 
     /**
-     * The data connector used to populate completion requests.
-     * Use the connector with ICompletionItemsReply for enhanced completions.
-     * #### Notes
-     * The only method of this connector that will ever be called is `fetch`, so
-     * it is acceptable for the other methods to be simple functions that return
-     * rejected promises.
-     *
-     * @deprecated passing `IDataConnector` is deprecated;
-     * pass `CompletionHandler.ICompletionItemsConnector`
+     * The reconciliator that will fetch and merge completions from active providers.
      */
-    connector: IConnectorProxy;
+    reconciliator: IProviderReconciliator;
   }
 
   /**
@@ -488,11 +476,20 @@ export namespace CompletionHandler {
      */
     deprecated?: boolean;
 
+    /**
+     * Method allowing to update fields asynchronously.
+     */
     resolve?: (
       patch?: Completer.IPatch
     ) => Promise<CompletionHandler.ICompletionItem>;
   }
 
+  /**
+   * Connector for completion items.
+   *
+   * @deprecated since v4 to add a new source of completions, register a completion provider;
+   *   to customise how completions get merged, provide a custom reconciliator.
+   */
   export type ICompletionItemsConnector = IDataConnector<
     CompletionHandler.ICompletionItemsReply,
     void,
@@ -503,7 +500,8 @@ export namespace CompletionHandler {
    * A reply to a completion items fetch request.
    */
   export interface ICompletionItemsReply<
-    T extends CompletionHandler.ICompletionItem = CompletionHandler.ICompletionItem
+    T extends
+      CompletionHandler.ICompletionItem = CompletionHandler.ICompletionItem
   > {
     /**
      * The starting index for the substring being replaced by completion.
@@ -517,39 +515,6 @@ export namespace CompletionHandler {
      * A list of completion items. default to CompletionHandler.ICompletionItems
      */
     items: Array<T>;
-  }
-
-  export interface ICompleterConnecterResponseType {
-    responseType: typeof ICompletionItemsResponseType;
-  }
-
-  export const ICompletionItemsResponseType = 'ICompletionItemsReply' as const;
-
-  /**
-   * @deprecated use `ICompletionItemsReply` instead
-   *
-   * A reply to a completion request.
-   */
-  export interface IReply {
-    /**
-     * The starting index for the substring being replaced by completion.
-     */
-    start: number;
-
-    /**
-     * The end index for the substring being replaced by completion.
-     */
-    end: number;
-
-    /**
-     * A list of matching completion strings.
-     */
-    matches: ReadonlyArray<string>;
-
-    /**
-     * Any metadata that accompanies the completion reply.
-     */
-    metadata: ReadonlyJSONObject;
   }
 
   /**

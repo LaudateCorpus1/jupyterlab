@@ -1,3 +1,6 @@
+.. Copyright (c) Jupyter Development Team.
+.. Distributed under the terms of the Modified BSD License.
+
 Contribute
 ==========
 
@@ -7,9 +10,18 @@ contributing!
 
 Please take a look at the Contributor documentation, familiarize
 yourself with using JupyterLab, and introduce yourself to the community
-(on the mailing list or discourse) and share what area of the project
-you are interested in working on. Please also see the Jupyter `Community
+(on the `chat <https://gitter.im/jupyterlab/jupyterlab>`__ and/or the `forum <https://discourse.jupyter.org/c/jupyterlab/17>`__)
+and share what area of the project you are interested in working on. Please also see the Jupyter `Community
 Guides <https://jupyter.readthedocs.io/en/latest/community/content-community.html>`__.
+
+You can help make it better by:
+
+* `submitting bug reports <https://github.com/jupyterlab/jupyterlab/issues/new/choose>`__,
+* `proposing new features <https://github.com/jupyterlab/jupyterlab/issues/new?assignees=&labels=enhancement%2C+status%3ANeeds+Triage&template=feature_request.md>`__,
+* `translating the application <https://crowdin.com/project/jupyterlab>`__,
+* `improving the documentation <https://jupyterlab.readthedocs.io/en/latest>`__,
+* improving the code base and fixing bug (see below)
+
 
 We have labeled some issues as `good first
 issue <https://github.com/jupyterlab/jupyterlab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22>`__
@@ -35,8 +47,10 @@ key <https://raw.githubusercontent.com/jupyter/notebook/master/docs/source/ipyth
    repo
    components
    patterns
+   Accessibility <accessibility>
    internationalization
    css
+   performance
    api
 
 .. contents:: Table of contents
@@ -51,6 +65,33 @@ the `Project Jupyter Contributor
 Documentation <https://jupyter.readthedocs.io/en/latest/contributing/content-contributor.html>`__
 and `Code of
 Conduct <https://github.com/jupyter/governance/blob/master/conduct/code_of_conduct.md>`__.
+
+.. _versioning_notes:
+
+Backwards Compatibility, Versions and Breaking Changes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+New versions of JupyterLab may break backwards compatibility with extensions and other Jupyter
+customizations. Breaking changes are kept to a minimum where possible. JupyterLab development
+and release cycles follow `semantic versioning <https://semver.org/>`__, so when breaking
+changes are necessary, they are communicated via the version numbering scheme. In short, this
+means that, for a JupyterLab version X.Y.Z:
+
+- Major version (X) number changes indicate breaking changes (NOT backwards compatible)
+- Minor Version (Y) number changes indicate a backwards compatible addition of new features
+- Patch version (Z) number changes indicate backwards compatible bug fixes
+
+Contributions to JupyterLab extensions and other customizations should plan for possible
+breaking changes. Consider documenting your maintenance plans to users in these projects.
+You may also wish to consider pinning the major version of JupyterLab when developing
+extensions (in your package metadata).
+
+We maintain the **two most recently released major versions of JupyterLab**,
+JupyterLab v3 and JupyterLab v4. JupyterLab v1 and v2 are no longer maintained.
+All JupyterLab v2 users are strongly advised to upgrade as soon as possible.
+
+Languages, Tools and Processes
+------------------------------
 
 All source code is written in
 `TypeScript <https://www.typescriptlang.org/Handbook>`__. See the `Style
@@ -67,7 +108,7 @@ speeding up the review process.
 As long as your code is valid,
 the pre-commit hook should take care of how it should look.
 `pre-commit` and its associated hooks will automatically be installed when
-you run ``pip install -e ".[test]"``
+you run ``pip install -e ".[dev,test]"``
 
 To install ``pre-commit`` manually, run the following::
 
@@ -102,7 +143,7 @@ and the issues it solves before a pull request is opened. A triager will
 ensure that your issue meets our definition of ready before we can merge
 any pull requests that relate to it.
 
-Pull requests must target the development branch (= ``master``) even if
+Pull requests must target the development branch (= ``main``) even if
 it aims at addressing an issue seen in a stable release. Once the pull
 request is merged on the development branch, it will be backported to
 the stable branch using a bot action (or manually if the bot action
@@ -211,6 +252,17 @@ pass without a reply that unblocks it.
 Our expectation is that every new issue should be examined within a week of
 its creation.
 
+Triagers should label easier/lower complexity issues as ``good first issue`` to
+facilitate beginner contributions. A good first issue should have:
+
+* A clear, easily understood description with screen shots and expectations that do not require much familiarity with the project
+* Links, either in the description or in comments, to documentation and source code files that are relevant to the issue
+* Recommended points of contact, either by GitHub username or on other forums (Discourse, etc) where a contributor can get help
+
+Unless an issue is time-sensitive, such as if it is a release blocker
+for an imminent release, experienced Jupyter contributors should avoid
+picking up recent issues with the ``good first issue`` label.
+
 Tagging Issues with Labels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -236,10 +288,10 @@ a local environment, directly from the Web browser:
    allows to prototype JupyterLab extensions from within JupyterLab and
    can be run without installation in the browser using Binder.
 
-Using `Binder <https://mybinder.org>`__, you can test the current master branch and your
+Using `Binder <https://mybinder.org>`__, you can test the current main branch and your
 changes within the browser as well. We recommend you have at least 8 GB of RAM for this.
-To build and launch an instance of the latest JupyterLab master, open
-`this link <https://mybinder.org/v2/gh/jupyterlab/jupyterlab/master?urlpath=lab-dev/>`__
+To build and launch an instance of the latest JupyterLab main, open
+`this link <https://mybinder.org/v2/gh/jupyterlab/jupyterlab/main?urlpath=lab-dev/>`__
 in a new tab. The build takes about 7 minutes to complete.
 
 To test your own branch hosted on GitHub, enter it on https://mybinder.org.
@@ -249,23 +301,23 @@ about 7 minutes again.
 Setting up a local development environment
 ------------------------------------------
 This section explains how to set up a local development environment. We assume you use GNU/Linux,
-Mac OS X, or Windows Subsystem for Linux.
+macOS, or Windows Subsystem for Linux. If using Windows, we recommend installing `Anaconda for windows <https://www.anaconda.com/download>`__ and then using the Anaconda command prompt for all installation steps.
 
 Installing Node.js and jlpm
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Building JupyterLab from its GitHub source code requires Node.js. The
-development version requires Node.js version 12+, as defined in the
+development version requires Node.js version 18+, as defined in the
 ``engines`` specification in
-`dev_mode/package.json <https://github.com/jupyterlab/jupyterlab/blob/master/dev_mode/package.json>`__.
+`dev_mode/package.json <https://github.com/jupyterlab/jupyterlab/blob/main/dev_mode/package.json>`__.
 
-If you use ``conda``, you can get it with:
+If you use `conda <https://conda.io>`__, you can get it with:
 
 .. code:: bash
 
-   conda install -c conda-forge 'nodejs'
+   conda install -c conda-forge nodejs
 
-If you use `Homebrew <https://brew.sh>`__ on Mac OS X:
+If you use `Homebrew <https://brew.sh>`__ on macOS:
 
 .. code:: bash
 
@@ -280,16 +332,38 @@ To check which version of Node.js is installed:
 
    node -v
 
-Installing JupyterLab
----------------------
+.. _Installing Node.js and jlpm section:
 
-If you use ``conda``, you may also want to install ``nb_conda_kernels`` to have a kernel
-option for different `conda
-environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`__
+The canvas node package is not properly packaged for macOS with ARM architectures (M1 and M2).
+To build JupyterLab on such platforms, you need a few additional packages:
+
+With conda:
 
 .. code:: bash
 
-   conda install -c conda-forge nb_conda_kernels
+   conda install -c conda-forge pkg-config pango libpng cairo jpeg giflib librsvg glib pixman
+   export PKG_CONFIG_PATH=$CONDA_PREFIX/lib/pkgconfig
+
+With Homebrew:
+
+.. code:: bash
+
+   brew install pkg-config cairo pango libpng jpeg giflib librsvg
+
+Using automation to set up a local development environment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While there is a lot to learn by following the steps above, they can be automated to save time. This section shows how
+to do that using Vagrant as an example.
+
+The main advantages of using automation are: reduced time to get the environment up-and-running, reduced time to
+re-build the environment, better standardisation ("baseline", reproducible environments).
+
+A practical example can be found `there <https://github.com/markgreene74/jupyterlab-local-dev-with-vagrant>`_ and
+includes a ``Vagrantfile``, the bootstrap files and additional documentation.
+
+Installing JupyterLab
+---------------------
 
 Fork the JupyterLab
 `repository <https://github.com/jupyterlab/jupyterlab>`__.
@@ -300,11 +374,19 @@ Then use the following steps:
 
    git clone https://github.com/<your-github-username>/jupyterlab.git
    cd jupyterlab
-   pip install -e ".[test]"
+   pip install -e ".[dev,test]"
    jlpm install
    jlpm run build  # Build the dev mode assets (optional)
-   jlpm run build:core  # Build the core mode assets (optional)
-   jupyter lab build  # Build the app dir assets (optional)
+
+Additionally, you might want to execute the following optional commands:
+
+.. code:: bash
+
+   # Build the core mode assets (optional)
+   jlpm run build:core
+
+   # Build the app dir assets (optional)
+   jupyter lab build
 
 Notes:
 
@@ -320,11 +402,8 @@ Notes:
 -  If you see an error that says ``Call to 'pkg-config pixman-1 --libs'
    returned exit status 127 while in binding.gyp`` while running the
    ``pip install`` command above, you may be missing packages required
-   by ``canvas``. On macOS with Homebrew, you can add these packages by
-   running
-   ``brew install pkg-config cairo pango libpng jpeg giflib librsvg``.
-   If you are using mamba or conda, you can install the necessary packages
-   with `conda install -c conda-forge pkg-config glib pango pixman`.
+   by ``canvas``. Please see `Installing Node.js and jlpm section`_
+   of this guide for instructions on how to install these packages.
 -  The ``jlpm`` command is a JupyterLab-provided, locked version of the
    `yarn <https://classic.yarnpkg.com/en/>`__ package manager. If you have
    ``yarn`` installed already, you can use the ``yarn`` command when
@@ -406,7 +485,21 @@ appropriate package folder:
 
    cd packages/notebook
    jlpm run build:test
-   jlpm test
+   jlpm test --runInBand
+
+.. note::
+
+    ``--runInBand`` option will run all tests serially in the current process.
+    We advice to use it as some tests are spinning a Jupyter Server that does not
+    like to be executed in parallel.
+
+If you see a test run fail with ``Library not loaded: '@rpath/libpixman-1.0.dylib'``
+(or a different library, such as ``libcairo.2.dylib`` for Mac computers with Apple
+Silicon chips) while running the
+``jlpm test`` command above, you may be missing packages required
+by ``canvas``. Please see
+`Installing Node.js and jlpm section`_
+of this guide for instructions on how to install these packages.
 
 We use ``jest`` for all tests, so standard ``jest`` workflows apply.
 Tests can be debugged in either VSCode or Chrome. It can help to add an
@@ -463,237 +556,57 @@ must be delayed on minor or major versions.
 Performance Testing
 -------------------
 
-If you are making a change that might affect how long it takes to load
-JupyterLab in the browser, we recommend doing some performance testing
-using `Lighthouse <https://github.com/GoogleChrome/lighthouse>`__. It
-let's you easily compute a number of metrics, like page load time, for
-the site.
+Benchmark of JupyterLab is done using Playwright. The actions measured are:
 
-To use it, first build JupyterLab in dev mode:
+- Opening a file
+- Switching from the file to a simple text file
+- Switching back to the file
+- Closing the file
 
-.. code:: bash
+Two files are tested: a notebook with many code cells and another with many markdown cells.
 
-   jlpm run build:dev
+The test is run on the CI by comparing the result in the commit at which a PR branch started and the PR branch head on
+the same CI job to ensure using the same hardware.
+The benchmark job is triggered on:
 
-Then, start JupyterLab using the dev build:
+- Approved PR review
+- PR review that contains the sentence ``please run benchmark``
 
-.. code:: bash
-
-   jupyter lab --dev-mode --ServerApp.token=''  --no-browser
-
-Now run Lighthouse against this local server and show the results:
-
-.. code:: bash
-
-   jlpm run lighthouse --view
-
-.. image:: ../images/lighthouse.png
-
-Using throttling
-^^^^^^^^^^^^^^^^
-
-Lighthouse recommends using the system level
-`comcast <https://github.com/tylertreat/comcast>`__ tool to throttle
-your network connection and emulate different scenarios. To use it,
-first install that tool using ``go``:
+The tests are located in the subfolder ``galata/test/benchmark``. And they can be
+executed with the following command:
 
 .. code:: bash
 
-   go get github.com/tylertreat/comcast
+   jlpm run test:benchmark
 
-Then, before you run Lighthouse, enable the throttling (this requires
-sudo):
 
-.. code:: bash
+A special report will be generated in the folder ``benchmark-results`` that will contain 4 files:
 
-   run lighthouse:throttling:start
+- ``lab-benchmark.json``: The execution time of the tests and some metadata.
+- ``lab-benchmark.md``: A report in Markdown
+- ``lab-benchmark.png``: A comparison of execution time distribution
+- ``lab-benchmark.vl.json``: The `Vega-Lite <https://vega.github.io/vega-lite>`__ description used to produce the PNG file.
 
-This enables the "WIFI (good)" preset of comcast, which should emulate
-loading JupyterLab over a local network.
+The reference, tagged *expected*, is stored in ``lab-benchmark-expected.json``. It can be
+created using the ``-u`` option of Playwright; i.e. ``jlpm run test:benchmark -u``.
 
-Then run the lighthouse tests:
+Benchmark parameters
+^^^^^^^^^^^^^^^^^^^^
 
-.. code:: bash
+The benchmark can be customized using the following environment variables:
 
-   jlpm run lighthouse [...]
+- ``BENCHMARK_NUMBER_SAMPLES``: Number of samples to compute the execution time distribution; default 20.
+- ``BENCHMARK_OUTPUTFILE``: Benchmark result output file; default ``benchmark.json``. It is overridden in the ``playwright-benchmark.config.js``.
+- ``BENCHMARK_REFERENCE``: Reference name of the data; default is ``actual`` for current data and ``expected`` for the reference.
 
-Then disable the throttling after you are done:
-
-.. code:: bash
-
-   jlpm run lighthouse:throttling:stop
-
-Comparing results
-^^^^^^^^^^^^^^^^^
-
-Performance results are usually only useful in comparison to other
-results. For that reason, we have included a comparison script that can
-take two lighthouse results and show the changes between them.
-
-Let's say we want to compare the results of the production build of
-JupyterLab with the normal build. The production build minifies all the
-JavaScript, so should load a bit faster.
-
-First, we build JupyterLab normally, start it up, profile it and save
-the results:
-
-.. code:: bash
-
-   jlpm build:dev
-   jupyter lab --dev --ServerApp.token='' --no-browser
-
-   # in new window
-   jlpm run lighthouse --output json --output-path normal.json
-
-Then rebuild with the production build and retest:
-
-.. code:: bash
-
-   jlpm run build:dev:prod
-   jupyter lab --dev --ServerApp.token='' --no-browser
-
-   # in new window
-   jlpm run lighthouse --output json --output-path prod.json
-
-Now we can use compare the two outputs:
-
-.. code:: bash
-
-   jlpm run lighthouse:compare normal.json prod.json
-
-This gives us a report of the relative differences between the audits in
-the two reports:
-
-.. admonition:: Resulting Output
-
-   ``normal.json`` -> ``prod.json``
-
-   | **First Contentful Paint**
-   | - -62% Δ
-   | - 1.9 s -> 0.7 s
-   | - First Contentful Paint marks the time at which the first text or
-     image is painted. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/first-contentful-paint>`__.
-
-   | **First Meaningful Paint**
-   | - -50% Δ
-   | - 2.5 s -> 1.3 s
-   | - First Meaningful Paint measures when the primary content of a
-     page is visible. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/first-meaningful-paint>`__.
-
-   | **Speed Index**
-   | - -48% Δ
-   | - 2.6 s -> 1.3 s
-   | - Speed Index shows how quickly the contents of a page are visibly
-     populated. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/speed-index>`__.
-
-   | **Estimated Input Latency**
-   | - 0% Δ
-   | - 20 ms -> 20 ms
-   | - Estimated Input Latency is an estimate of how long your app takes
-     to respond to user input, in milliseconds, during the busiest 5s
-     window of page load. If your latency is higher than 50 ms, users
-     may perceive your app as laggy. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/estimated-input-latency>`__.
-
-   | **Max Potential First Input Delay**
-   | - 9% Δ
-   | - 200 ms -> 210 ms
-   | - The maximum potential First Input Delay that your users could
-     experience is the duration, in milliseconds, of the longest task.
-     `Learn
-     more <https://developers.google.com/web/updates/2018/05/first-input-delay>`__.
-
-   | **First CPU Idle**
-   | - -50% Δ
-   | - 2.5 s -> 1.3 s
-   | - First CPU Idle marks the first time at which the page's main
-     thread is quiet enough to handle input. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/first-interactive>`__.
-
-   | **Time to Interactive**
-   | - -52% Δ
-   | - 2.5 s -> 1.2 s
-   | - Time to interactive is the amount of time it takes for the page
-     to become fully interactive. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/consistently-interactive>`__.
-
-   | **Avoid multiple page redirects**
-   | - -2% Δ
-   | - Potential savings of 10 ms -> Potential savings of 10 ms
-   | - Redirects introduce additional delays before the page can be
-     loaded. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/redirects>`__.
-
-   | **Minimize main-thread work**
-   | - -54% Δ
-   | - 2.1 s -> 1.0 s
-   | - Consider reducing the time spent parsing, compiling and executing
-     JS. You may find delivering smaller JS payloads helps with this.
-
-   | **JavaScript execution time**
-   | - -49% Δ
-   | - 1.1 s -> 0.6 s
-   | - Consider reducing the time spent parsing, compiling, and
-     executing JS. You may find delivering smaller JS payloads helps
-     with this. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/bootup>`__.
-
-   | **Preload key requests**
-   | - -100% Δ
-   | - Potential savings of 240 ms ->
-   | - Consider using <link rel=preload> to prioritize fetching
-     resources that are currently requested later in page load. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/preload>`__.
-
-   | **Uses efficient cache policy on static assets**
-   | - 0% Δ
-   | - 1 resource found -> 1 resource found
-   | - A long cache lifetime can speed up repeat visits to your page.
-     `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/cache-policy>`__.
-
-   | **Avoid enormous network payloads**
-   | - -86% Δ
-   | - Total size was 30,131 KB -> Total size was 4,294 KB
-   | - Large network payloads cost users real money and are highly
-     correlated with long load times. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/network-payloads>`__.
-
-   | **Minify JavaScript**
-   | - -100% Δ
-   | - Potential savings of 23,041 KB ->
-   | - Minifying JavaScript files can reduce payload sizes and script
-     parse time. `Learn
-     more <https://developers.google.com/speed/docs/insights/MinifyResources>`__.
-
-   | **Enable text compression**
-   | - -86% Δ
-   | - Potential savings of 23,088 KB -> Potential savings of 3,112 KB
-   | - Text-based resources should be served with compression (gzip,
-     deflate or brotli) to minimize total network bytes. `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/text-compression>`__.
-
-   | **Avoid an excessive DOM size**
-   | - 0% Δ
-   | - 1,268 elements -> 1,268 elements
-   | - Browser engineers recommend pages contain fewer than ~1,500 DOM
-     elements. The sweet spot is a tree depth < 32 elements and fewer
-     than 60 children/parent element. A large DOM can increase memory
-     usage, cause longer `style
-     calculations <https://developers.google.com/web/fundamentals/performance/rendering/reduce-the-scope-and-complexity-of-style-calculations>`__,
-     and produce costly `layout
-     reflows <https://developers.google.com/speed/articles/reflow>`__.
-     `Learn
-     more <https://developers.google.com/web/tools/lighthouse/audits/dom-size>`__.
+More tests can be carried out manually on JupyterLab branches and run weekly on the default branch in
+`jupyterlab/benchmarks <https://github.com/jupyterlab/benchmarks/#readme>`__ repository.
 
 Visual Regression and UI Tests
 ------------------------------
 
 As part of JupyterLab CI workflows, UI tests are run with visual regression checks.
-`Galata <https://github.com/jupyterlab/jupyterlab/tree/master/galata>`__ is used for UI
+`Galata <https://github.com/jupyterlab/jupyterlab/tree/main/galata>`__ is used for UI
 testing. Galata provides `Playwright <https://playwright.dev>`__ helpers to control and
 inspect JupyterLab UI programmatically.
 
@@ -732,7 +645,10 @@ Main reasons for UI test failures are:
      documentation test snapshots.
    - ``please update snapshots``: Combine the two previous comments effects.
 
-For more information on UI Testing, please read the `UI Testing developer documentation <https://github.com/jupyterlab/jupyterlab/blob/master/galata/README.md>`__
+    The bot will react with +1 emoji to indicate that the run started and then comment
+    back once it concluded.
+
+For more information on UI Testing, please read the `UI Testing developer documentation <https://github.com/jupyterlab/jupyterlab/blob/main/galata/README.md>`__
 and `Playwright documentation <https://playwright.dev/docs/intro>`__.
 
 Good Practices for Integration tests
@@ -758,6 +674,7 @@ The Debugger Adapter Protocol
 The following diagram illustrates the types of messages sent between the JupyterLab extension and the kernel.
 
 .. image:: ./debugger_protocol_diagram.png
+   :alt: UML sequence diagram illustrating the interaction between a user, JupyterLab, and the kernel. From top to bottom, the timeline starts with opening the notebook and includes annotations where the debugger is started and stopped. Specific interactions and message types are discussed in the subsequent text.
 
 Inspecting Debug Messages in VS Code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -767,6 +684,7 @@ Inspecting the debug messages in VS Code can be useful to understand when debug 
 The first step is to create a test file and a debug configuration (``launch.json``):
 
 .. image:: ./debugger_launch_configuration.png
+   :alt: An editor showing the menu for creating a debug configuration.
 
 .. code:: json
 
@@ -787,6 +705,7 @@ The first step is to create a test file and a debug configuration (``launch.json
 Then start the debugger:
 
 .. image:: ./debugger_vscode_start.png
+   :alt: A started debugging session in the editor. There are additional buttons in the upper right for navigating the session.
 
 The content of the log file looks like this:
 
@@ -914,7 +833,7 @@ need to install the documentation dependencies with ``pip``:
 
 .. code:: bash
 
-   pip install -e .[docs]
+   pip install -e ".[docs]"
 
 
 To test the docs run:
@@ -1107,16 +1026,12 @@ them out against your copy of JupyterLab, you can easily do so using the
 ``link`` command:
 
 1. Make your changes and then build the external package
-2. Register a link to the modified external package
-
-   -  navigate to the external package dir and run ``jlpm link``
-
-3. Link JupyterLab to modded package
+2. Link JupyterLab to modded package
 
    -  navigate to top level of your JupyterLab repo, then run
-      ``jlpm link "<package-of-interest>"``
+      ``jlpm link <path-to-external-repo> --all``
 
-You can then (re)build JupyterLab (eg ``jlpm run build``) and your
+3. You can then (re)build JupyterLab (eg ``jlpm run build``) and your
 changes should be picked up by the build.
 
 To restore JupyterLab to its original state, you use the ``unlink``
@@ -1125,13 +1040,13 @@ command:
 1. Unlink JupyterLab and modded package
 
    -  navigate to top level of your JupyterLab repo, then run
-      ``jlpm unlink "<package-of-interest>"``
+      ``jlpm unlink <path-to-external-repo> --all``
 
 2. Reinstall original version of the external package in JupyterLab
 
    -  run ``jlpm install --check-files``
 
-You can then (re)build JupyterLab and everything should be back to
+3. You can then (re)build JupyterLab and everything should be back to
 default.
 
 Possible Linking Pitfalls

@@ -16,15 +16,19 @@ import {
   KernelCompleterProvider
 } from '@jupyterlab/completer';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
-import { IFormComponentRegistry } from '@jupyterlab/ui-components';
-import type { FieldProps } from '@rjsf/core';
+import {
+  IFormRenderer,
+  IFormRendererRegistry
+} from '@jupyterlab/ui-components';
+import type { FieldProps } from '@rjsf/utils';
 
 import { renderAvailableProviders } from './renderer';
 
-const COMPLETION_MANAGER_PLUGIN = '@jupyterlab/completer-extension:tracker';
+const COMPLETION_MANAGER_PLUGIN = '@jupyterlab/completer-extension:manager';
 
 const defaultProvider: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlab/completer-extension:base-service',
+  description: 'Adds context and kernel completion providers.',
   requires: [ICompletionProviderManager],
   autoStart: true,
   activate: (
@@ -38,14 +42,15 @@ const defaultProvider: JupyterFrontEndPlugin<void> = {
 
 const manager: JupyterFrontEndPlugin<ICompletionProviderManager> = {
   id: COMPLETION_MANAGER_PLUGIN,
+  description: 'Provides the completion provider manager.',
   requires: [ISettingRegistry],
-  optional: [IFormComponentRegistry],
+  optional: [IFormRendererRegistry],
   provides: ICompletionProviderManager,
   autoStart: true,
   activate: (
     app: JupyterFrontEnd,
     settings: ISettingRegistry,
-    editorRegistry: IFormComponentRegistry | null
+    editorRegistry: IFormRendererRegistry | null
   ): ICompletionProviderManager => {
     const AVAILABLE_PROVIDERS = 'availableProviders';
     const PROVIDER_TIMEOUT = 'providerTimeout';
@@ -61,7 +66,7 @@ const manager: JupyterFrontEndPlugin<ICompletionProviderManager> = {
       const showDoc = settingValues.get(SHOW_DOCUMENT_PANEL);
       const continuousHinting = settingValues.get(CONTINUOUS_HINTING);
       manager.setTimeout(timeout.composite as number);
-      manager.setShowDocumentFlag(showDoc.composite as boolean);
+      manager.setShowDocumentationPanel(showDoc.composite as boolean);
       manager.setContinuousHinting(continuousHinting.composite as boolean);
       const selectedProviders = providersData.user ?? providersData.composite;
       const sortedProviders = Object.entries(selectedProviders ?? {})
@@ -73,13 +78,16 @@ const manager: JupyterFrontEndPlugin<ICompletionProviderManager> = {
 
     app.restored
       .then(() => {
-        const availableProviders = [...manager.getProviders().keys()];
+        const availableProviders = [...manager.getProviders().entries()];
+        const availableProviderIDs = availableProviders.map(
+          ([key, value]) => key
+        );
         settings.transform(COMPLETION_MANAGER_PLUGIN, {
           fetch: plugin => {
             const schema = plugin.schema.properties!;
             const defaultValue: { [key: string]: number } = {};
-            availableProviders.forEach((item, index) => {
-              defaultValue[item] = (index + 1) * 100;
+            availableProviders.forEach(([key, value], index) => {
+              defaultValue[key] = value.rank ?? (index + 1) * 10;
             });
             schema[AVAILABLE_PROVIDERS]['default'] = defaultValue;
             return plugin;
@@ -88,9 +96,9 @@ const manager: JupyterFrontEndPlugin<ICompletionProviderManager> = {
         const settingsPromise = settings.load(COMPLETION_MANAGER_PLUGIN);
         settingsPromise
           .then(settingValues => {
-            updateSetting(settingValues, availableProviders);
+            updateSetting(settingValues, availableProviderIDs);
             settingValues.changed.connect(newSettings => {
-              updateSetting(newSettings, availableProviders);
+              updateSetting(newSettings, availableProviderIDs);
             });
           })
           .catch(console.error);
@@ -98,9 +106,15 @@ const manager: JupyterFrontEndPlugin<ICompletionProviderManager> = {
       .catch(console.error);
 
     if (editorRegistry) {
-      editorRegistry.addRenderer('availableProviders', (props: FieldProps) => {
-        return renderAvailableProviders(props);
-      });
+      const renderer: IFormRenderer = {
+        fieldRenderer: (props: FieldProps) => {
+          return renderAvailableProviders(props);
+        }
+      };
+      editorRegistry.addRenderer(
+        `${COMPLETION_MANAGER_PLUGIN}.availableProviders`,
+        renderer
+      );
     }
 
     return manager;
