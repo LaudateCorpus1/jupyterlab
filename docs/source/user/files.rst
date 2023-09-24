@@ -1,3 +1,6 @@
+.. Copyright (c) Jupyter Development Team.
+.. Distributed under the terms of the Modified BSD License.
+
 .. _working-with-files:
 
 Working with Files
@@ -22,7 +25,7 @@ Many actions on files can also be carried out in the File menu:
 .. image:: ../images/files-menu-top.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot showing the File menu open including options like "New", "Save All."
+   :alt: The File menu open including options like "New", "Save All."
 
 .. _open-file:
 
@@ -89,13 +92,14 @@ directory open.
 .. image:: ../images/files-shareable-link.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot showing the Copy Shareable Link option in the context menu opened over a file, which is the last entry on the list.
+   :alt: The Copy Shareable Link option in the context menu of a file. Copy Shareable Link is the last entry on the list.
 
 .. _file-copy-path:
 
 Right-click on a file or directory and select "Copy Path" to copy the
 filesystem relative path. This can be used for passing arguments to open
 files in functions called in various kernels.
+If you want to copy the filesystem absolute path, you must add the jupyterlab server config `LabServerApp.copy_absolute_path=True` and `ServerApp.root_dir = 'xxx'`.
 
 Creating Files and Activities
 -----------------------------
@@ -119,7 +123,7 @@ You can also create new documents or activities using the File menu:
 .. image:: ../images/files-create-text-file.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot showing the context menu entry for creating a new file.
+   :alt: The context menu entry for creating a new file.
 
 .. _current-directory:
 

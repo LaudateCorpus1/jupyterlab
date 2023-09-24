@@ -10,6 +10,7 @@
 @import './toolbar.css';
 @import './executionindicator.css';
 @import './toc.css';
+@import './notebookfooter.css';
 
 /*-----------------------------------------------------------------------------
 | CSS variables
@@ -27,6 +28,8 @@
 /*-----------------------------------------------------------------------------
 | Notebook
 |----------------------------------------------------------------------------*/
+
+/* stylelint-disable selector-max-class */
 
 .jp-NotebookPanel {
   display: block;
@@ -53,10 +56,6 @@
 
 .jp-MainAreaWidget-ContainStrict .jp-Notebook * {
   contain: strict;
-}
-
-.jp-Notebook-render * {
-  contain: none !important;
 }
 
 .jp-Notebook .jp-Cell {
@@ -231,29 +230,30 @@
   overflow: auto;
 }
 
-.jp-NotebookTools-tool {
-  padding: 0 12px;
-}
-
 .jp-ActiveCellTool {
-  padding: 12px;
-  background-color: var(--jp-layout-color1);
-  border-top: none !important;
+  padding: 12px 0;
+  display: flex;
 }
 
-.jp-ActiveCellTool .jp-InputArea-prompt {
-  flex: 0 0 auto;
-  padding-left: 0;
-}
-
-.jp-ActiveCellTool .jp-InputArea-editor {
+.jp-ActiveCellTool-Content {
   flex: 1 1 auto;
-  background: var(--jp-cell-editor-background);
-  border-color: var(--jp-cell-editor-border-color);
 }
 
-.jp-ActiveCellTool .jp-InputArea-editor .CodeMirror {
-  background: transparent;
+.jp-ActiveCellTool .jp-ActiveCellTool-CellContent {
+  background: var(--jp-cell-editor-background);
+  border: var(--jp-border-width) solid var(--jp-cell-editor-border-color);
+  border-radius: 0;
+  min-height: 29px;
+}
+
+.jp-ActiveCellTool .jp-InputPrompt {
+  min-width: calc(var(--jp-cell-prompt-width) * 0.75);
+}
+
+.jp-ActiveCellTool-CellContent > pre {
+  padding: 5px 4px;
+  margin: 0;
+  white-space: normal;
 }
 
 .jp-MetadataEditorTool {

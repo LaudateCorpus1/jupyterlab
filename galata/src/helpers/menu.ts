@@ -21,9 +21,12 @@ export class MenuHelper {
     for (let i = 0; i < numOpenMenus; ++i) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(100);
-      await page.waitForFunction((menuCount: number) => {
-        return document.querySelectorAll('.lm-Menu').length === menuCount;
-      }, numOpenMenus - (i + 1));
+      await page.waitForFunction(
+        (menuCount: number) => {
+          return document.querySelectorAll('.lm-Menu').length === menuCount;
+        },
+        numOpenMenus - (i + 1)
+      );
     }
   }
 
@@ -39,6 +42,21 @@ export class MenuHelper {
         'lm-MenuBar-itemLabel'
       )}]]`
     );
+  }
+
+  /**
+   * Open a context menu and get its handle.
+   *
+   * @param selector Element over which the menu should be opened
+   * @returns Handle to the menu or null
+   */
+  async openContextMenu(
+    selector: string
+  ): Promise<ElementHandle<Element> | null> {
+    await this.page.click(selector, {
+      button: 'right'
+    });
+    return await this.page.$('.lm-Menu');
   }
 
   /**

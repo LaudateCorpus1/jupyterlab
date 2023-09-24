@@ -13,45 +13,17 @@
 @import './iconshover.css';
 @import './iframe.css';
 @import './hoverbox.css';
+@import './rjsfTemplates.css';
+@import './sidepanel.css';
 @import './spinner.css';
 @import './styling.css';
-@import './sidepanel.css';
 @import './switch.css';
 @import './toolbar.css';
-
-/* Override Blueprint's _reset.scss styles */
-html {
-  box-sizing: unset;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: unset;
-}
+@import './windowedlist.css';
 
 body {
   color: var(--jp-ui-font-color1);
   font-size: var(--jp-ui-font-size1);
-
-  /* Blueprint reset rules */
-  font-weight: 400;
-  letter-spacing: 0;
-  line-height: 1.28581;
-  text-transform: none;
-}
-
-p {
-  margin-top: unset;
-  margin-bottom: unset;
-}
-
-small {
-  font-size: unset;
-}
-
-strong {
-  font-weight: unset;
 }
 
 /* Disable native link decoration styles everywhere outside of dialog boxes */
@@ -68,19 +40,11 @@ a:hover {
 /* Accessibility for links inside dialog box text */
 .jp-Dialog-content a {
   text-decoration: revert;
-  color: revert;
+  color: var(--jp-content-link-color);
 }
 
 .jp-Dialog-content a:hover {
   text-decoration: revert;
-  color: revert;
-}
-
-/* Override Blueprint's _accessibility.scss styles */
-:focus {
-  outline: unset;
-  outline-offset: unset;
-  -moz-outline-radius: unset;
 }
 
 /* Styles for ui-components */
@@ -157,8 +121,8 @@ a:hover {
 }
 
 .jp-InputGroup input:focus {
-  box-shadow: inset 0 0 0 var(--jp-border-width)
-      var(--jp-input-active-box-shadow-color),
+  box-shadow:
+    inset 0 0 0 var(--jp-border-width) var(--jp-input-active-box-shadow-color),
     inset 0 0 0 3px var(--jp-input-active-box-shadow-color);
 }
 
@@ -181,7 +145,7 @@ input::placeholder {
 
 .jp-InputGroupAction {
   position: absolute;
-  top: 0;
+  bottom: 1px;
   right: 0;
   padding: 6px;
 }
@@ -194,6 +158,7 @@ input::placeholder {
   color: var(--jp-ui-font-color0);
   display: block;
   font-size: var(--jp-ui-font-size1);
+  font-family: var(--jp-ui-font-family);
   height: 24px;
   line-height: 14px;
   padding: 0 25px 0 10px;
@@ -214,6 +179,7 @@ input::placeholder {
 }
 
 /* Use our own theme for hover and option styles */
+/* stylelint-disable-next-line selector-max-type */
 .jp-HTMLSelect.jp-DefaultStyle select:hover,
 .jp-HTMLSelect.jp-DefaultStyle select > option {
   background-color: var(--jp-layout-color2);

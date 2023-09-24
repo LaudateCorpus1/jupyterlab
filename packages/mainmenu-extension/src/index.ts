@@ -28,7 +28,6 @@ import {
   IRunMenu,
   ITabsMenu,
   IViewMenu,
-  JupyterLabMenu,
   MainMenu
 } from '@jupyterlab/mainmenu';
 import { ServerConnection } from '@jupyterlab/services';
@@ -36,11 +35,12 @@ import { ISettingRegistry, SettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, TranslationBundle } from '@jupyterlab/translation';
 import {
   fastForwardIcon,
+  RankedMenu,
   refreshIcon,
   runIcon,
   stopIcon
 } from '@jupyterlab/ui-components';
-import { each, find } from '@lumino/algorithm';
+import { find } from '@lumino/algorithm';
 import { JSONExt } from '@lumino/coreutils';
 import { IDisposable } from '@lumino/disposable';
 import { Menu, Widget } from '@lumino/widgets';
@@ -132,6 +132,7 @@ export namespace CommandIDs {
  */
 const plugin: JupyterFrontEndPlugin<IMainMenu> = {
   id: PLUGIN_ID,
+  description: 'Adds and provides the application main menu.',
   requires: [IRouter, ITranslator],
   optional: [ICommandPalette, ILabShell, ISettingRegistry],
   provides: IMainMenu,
@@ -154,12 +155,15 @@ const plugin: JupyterFrontEndPlugin<IMainMenu> = {
     if (registry) {
       await Private.loadSettingsMenu(
         registry,
-        (aMenu: JupyterLabMenu) => {
-          menu.addMenu(aMenu, { rank: aMenu.rank });
+        (aMenu: RankedMenu) => {
+          menu.addMenu(aMenu, false, { rank: aMenu.rank });
         },
         options => MainMenu.generateMenu(commands, options, trans),
         translator
       );
+
+      // Trigger single update
+      menu.update();
     }
 
     // Only add quit button if the back-end supports it by checking page config.
@@ -256,7 +260,7 @@ const plugin: JupyterFrontEndPlugin<IMainMenu> = {
 /**
  * Create the basic `Edit` menu.
  */
-export function createEditMenu(
+function createEditMenu(
   app: JupyterFrontEnd,
   menu: IEditMenu,
   trans: TranslationBundle
@@ -327,7 +331,7 @@ export function createEditMenu(
 /**
  * Create the basic `File` menu.
  */
-export function createFileMenu(
+function createFileMenu(
   app: JupyterFrontEnd,
   menu: IFileMenu,
   router: IRouter,
@@ -449,7 +453,7 @@ export function createFileMenu(
 /**
  * Create the basic `Kernel` menu.
  */
-export function createKernelMenu(
+function createKernelMenu(
   app: JupyterFrontEnd,
   menu: IKernelMenu,
   trans: TranslationBundle
@@ -534,7 +538,7 @@ export function createKernelMenu(
   commands.addCommand(CommandIDs.shutdownAllKernels, {
     label: trans.__('Shut Down All Kernels…'),
     isEnabled: () => {
-      return app.serviceManager.sessions.running().next() !== undefined;
+      return !app.serviceManager.sessions.running().next().done;
     },
     execute: () => {
       return showDialog({
@@ -556,7 +560,7 @@ export function createKernelMenu(
 /**
  * Create the basic `View` menu.
  */
-export function createViewMenu(
+function createViewMenu(
   app: JupyterFrontEnd,
   menu: IViewMenu,
   trans: TranslationBundle
@@ -603,7 +607,7 @@ export function createViewMenu(
 /**
  * Create the basic `Run` menu.
  */
-export function createRunMenu(
+function createRunMenu(
   app: JupyterFrontEnd,
   menu: IRunMenu,
   trans: TranslationBundle
@@ -653,7 +657,7 @@ export function createRunMenu(
 /**
  * Create the basic `Tabs` menu.
  */
-export function createTabsMenu(
+function createTabsMenu(
   app: JupyterFrontEnd,
   menu: ITabsMenu,
   labShell: ILabShell | null,
@@ -705,7 +709,7 @@ export function createTabsMenu(
         tabGroup.length = 0;
 
         let isPreviouslyUsedTabAttached = false;
-        each(app.shell.widgets('main'), widget => {
+        for (const widget of app.shell.widgets('main')) {
           if (widget.id === previousId) {
             isPreviouslyUsedTabAttached = true;
           }
@@ -713,7 +717,7 @@ export function createTabsMenu(
             command: CommandIDs.activateById,
             args: { id: widget.id }
           });
-        });
+        }
         disposable = menu.addGroup(tabGroup, 1);
         previousId = isPreviouslyUsedTabAttached ? previousId : '';
       };
@@ -736,7 +740,7 @@ export function createTabsMenu(
 /**
  * Create the basic `Help` menu.
  */
-export function createHelpMenu(
+function createHelpMenu(
   app: JupyterFrontEnd,
   menu: IHelpMenu,
   trans: TranslationBundle
@@ -781,7 +785,7 @@ namespace Private {
   export async function loadSettingsMenu(
     registry: ISettingRegistry,
     addMenu: (menu: Menu) => void,
-    menuFactory: (options: IMainMenu.IMenuOptions) => JupyterLabMenu,
+    menuFactory: (options: IMainMenu.IMenuOptions) => RankedMenu,
     translator: ITranslator
   ): Promise<void> {
     const trans = translator.load('jupyterlab');

@@ -100,7 +100,8 @@ function activateHubExtension(
  */
 const hubExtension: JupyterFrontEndPlugin<void> = {
   activate: activateHubExtension,
-  id: 'jupyter.extensions.hub-extension',
+  id: '@jupyterlab/hub-extension:plugin',
+  description: 'Registers commands related to the hub server',
   requires: [JupyterFrontEnd.IPaths, ITranslator],
   optional: [ICommandPalette],
   autoStart: true
@@ -111,7 +112,8 @@ const hubExtension: JupyterFrontEndPlugin<void> = {
  */
 const hubExtensionMenu: JupyterFrontEndPlugin<void> = {
   activate: () => void 0,
-  id: 'jupyter.extensions.hub-extension:plugin',
+  id: '@jupyterlab/hub-extension:menu',
+  description: 'Adds hub related commands to the menu.',
   autoStart: true
 };
 
@@ -124,7 +126,9 @@ const hubExtensionMenu: JupyterFrontEndPlugin<void> = {
  * Otherwise, it shows an error dialog.
  */
 const connectionlost: JupyterFrontEndPlugin<IConnectionLost> = {
-  id: '@jupyterlab/apputils-extension:connectionlost',
+  id: '@jupyterlab/hub-extension:connectionlost',
+  description:
+    'Provides a service to be notified when the connection to the hub server is lost.',
   requires: [JupyterFrontEnd.IPaths, ITranslator],
   optional: [JupyterLab.IInfo],
   activate: (

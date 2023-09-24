@@ -21,7 +21,7 @@ import {
 import { IEditorServices } from '@jupyterlab/codeeditor';
 import {
   CommandToolbarButton,
-  IFormComponentRegistry,
+  IFormRendererRegistry,
   launchIcon,
   Toolbar
 } from '@jupyterlab/ui-components';
@@ -60,11 +60,12 @@ type SettingEditorType = 'ui' | 'json';
  */
 const plugin: JupyterFrontEndPlugin<ISettingEditorTracker> = {
   id: '@jupyterlab/settingeditor-extension:form-ui',
+  description: 'Adds the interactive settings editor and provides its tracker.',
   requires: [
     ISettingRegistry,
     IStateDB,
     ITranslator,
-    IFormComponentRegistry,
+    IFormRendererRegistry,
     ILabStatus
   ],
   optional: [ILayoutRestorer, ICommandPalette, IJSONSettingEditorTracker],
@@ -81,7 +82,7 @@ function activate(
   registry: ISettingRegistry,
   state: IStateDB,
   translator: ITranslator,
-  editorRegistry: IFormComponentRegistry,
+  editorRegistry: IFormRendererRegistry,
   status: ILabStatus,
   restorer: ILayoutRestorer | null,
   palette: ICommandPalette | null,
@@ -160,13 +161,18 @@ function activate(
       query?: string;
       settingEditorType?: SettingEditorType;
     }) => {
-      registry.load(plugin.id).then(settings => {
-        args.settingEditorType ??
-        (settings.get('settingEditorType').composite as SettingEditorType) ===
+      if (args.settingEditorType === 'ui') {
+        void commands.execute(CommandIDs.open, { query: args.query ?? '' });
+      } else if (args.settingEditorType === 'json') {
+        void commands.execute(CommandIDs.openJSON);
+      } else {
+        void registry.load(plugin.id).then(settings => {
+          (settings.get('settingEditorType').composite as SettingEditorType) ===
           'json'
-          ? commands.execute(CommandIDs.openJSON)
-          : openUi({ query: args.query ?? '' });
-      });
+            ? void commands.execute(CommandIDs.openJSON)
+            : void openUi({ query: args.query ?? '' });
+        });
+      }
     },
     label: args => {
       if (args.label) {
@@ -192,6 +198,7 @@ function activate(
  */
 const jsonPlugin: JupyterFrontEndPlugin<IJSONSettingEditorTracker> = {
   id: '@jupyterlab/settingeditor-extension:plugin',
+  description: 'Adds the JSON settings editor and provides its tracker.',
   requires: [
     ISettingRegistry,
     IEditorServices,

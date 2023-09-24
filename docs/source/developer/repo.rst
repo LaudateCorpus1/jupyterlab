@@ -1,3 +1,6 @@
+.. Copyright (c) Jupyter Development Team.
+.. Distributed under the terms of the Modified BSD License.
+
 .. _developer-guide:
 
 General Codebase Orientation
@@ -10,7 +13,7 @@ In particular, there are many TypeScript packages and a single Python package.
 The Python package contains server-side code, and also distributes
 the bundled-and-compiled TypeScript code.
 
-See the `Contributing Guidelines <https://github.com/jupyterlab/jupyterlab/blob/master/CONTRIBUTING.md>`__
+See the `Contributing Guidelines <https://github.com/jupyterlab/jupyterlab/blob/main/CONTRIBUTING.md>`__
 for detailed developer installation instructions.
 
 Directories
@@ -22,7 +25,7 @@ are described here.
 Python package: ``jupyterlab/``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This, along with the ``setup.py``, comprises the Python code for the project.
+This, along with the ``pyproject.toml``, comprises the Python code for the project.
 This includes the notebook server extension, JupyterLab's command line interface,
 entrypoints, and Python tests.
 

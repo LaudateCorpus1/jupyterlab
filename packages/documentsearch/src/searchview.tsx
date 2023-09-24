@@ -14,15 +14,20 @@ import {
   caseSensitiveIcon,
   classes,
   closeIcon,
-  ellipsesIcon,
+  filterDotIcon,
+  filterIcon,
   regexIcon,
-  VDomRenderer
+  VDomRenderer,
+  wordIcon
 } from '@jupyterlab/ui-components';
 import { ISignal, Signal } from '@lumino/signaling';
-import { Widget } from '@lumino/widgets';
+import { CommandRegistry } from '@lumino/commands';
+import { UseSignal } from '@jupyterlab/apputils';
+import { Message } from '@lumino/messaging';
 import * as React from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SearchDocumentModel } from './searchmodel';
-import { IFilter, IFilters } from './tokens';
+import { IFilter, IFilters, IReplaceOptionsSupport } from './tokens';
 
 const OVERLAY_CLASS = 'jp-DocumentSearch-overlay';
 const OVERLAY_ROW_CLASS = 'jp-DocumentSearch-overlay-row';
@@ -33,15 +38,12 @@ const INPUT_BUTTON_CLASS_ON = 'jp-DocumentSearch-input-button-on';
 const INDEX_COUNTER_CLASS = 'jp-DocumentSearch-index-counter';
 const UP_DOWN_BUTTON_WRAPPER_CLASS = 'jp-DocumentSearch-up-down-wrapper';
 const UP_DOWN_BUTTON_CLASS = 'jp-DocumentSearch-up-down-button';
-const ELLIPSES_BUTTON_CLASS = 'jp-DocumentSearch-ellipses-button';
-const ELLIPSES_BUTTON_ENABLED_CLASS =
-  'jp-DocumentSearch-ellipses-button-enabled';
+const FILTER_BUTTON_CLASS = 'jp-DocumentSearch-filter-button';
+const FILTER_BUTTON_ENABLED_CLASS = 'jp-DocumentSearch-filter-button-enabled';
 const REGEX_ERROR_CLASS = 'jp-DocumentSearch-regex-error';
 const SEARCH_OPTIONS_CLASS = 'jp-DocumentSearch-search-options';
-const SEARCH_OPTIONS_DISABLED_CLASS =
-  'jp-DocumentSearch-search-options-disabled';
-const SEARCH_DOCUMENT_LOADING = 'jp-DocumentSearch-document-loading';
-const REPLACE_ENTRY_CLASS = 'jp-DocumentSearch-replace-entry';
+const SEARCH_FILTER_DISABLED_CLASS = 'jp-DocumentSearch-search-filter-disabled';
+const SEARCH_FILTER_CLASS = 'jp-DocumentSearch-search-filter';
 const REPLACE_BUTTON_CLASS = 'jp-DocumentSearch-replace-button';
 const REPLACE_BUTTON_WRAPPER_CLASS = 'jp-DocumentSearch-replace-button-wrapper';
 const REPLACE_WRAPPER_CLASS = 'jp-DocumentSearch-replace-wrapper-class';
@@ -52,15 +54,89 @@ const BUTTON_CONTENT_CLASS = 'jp-DocumentSearch-button-content';
 const BUTTON_WRAPPER_CLASS = 'jp-DocumentSearch-button-wrapper';
 const SPACER_CLASS = 'jp-DocumentSearch-spacer';
 
+interface ISearchInputProps {
+  placeholder: string;
+  title: string;
+  initialValue: string;
+  inputRef?: React.RefObject<HTMLTextAreaElement>;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  autoFocus: boolean;
+  autoUpdate: boolean;
+}
+
+/**
+ * Provides information about keybindings for display in tooltips.
+ */
+export interface ISearchKeyBindings {
+  readonly next?: CommandRegistry.IKeyBinding;
+  readonly previous?: CommandRegistry.IKeyBinding;
+  readonly toggleSearchInSelection?: CommandRegistry.IKeyBinding;
+}
+
+function SearchInput(props: ISearchInputProps): JSX.Element {
+  const [rows, setRows] = useState<number>(1);
+
+  const updateRows = useCallback(
+    (event?: React.SyntheticEvent<HTMLTextAreaElement>) => {
+      const element = event
+        ? (event.target as HTMLTextAreaElement)
+        : props.inputRef?.current;
+      if (element) {
+        setRows(element.value.split(/\n/).length);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    // For large part, `focusSearchInput()` is responsible for focusing and
+    // selecting the search input, however when `initialValue` changes, this
+    // triggers React re-render to update `defaultValue` (implemented via `key`)
+    // which means that `focusSearchInput` is no longer effective as it has
+    // already fired before the re-render, hence we use this conditional effect.
+    props.inputRef?.current?.select();
+    // After any change to initial value we also want to update rows in case if
+    // multi-line text was selected.
+    updateRows();
+  }, [props.initialValue]);
+
+  return (
+    <textarea
+      placeholder={props.placeholder}
+      className={INPUT_CLASS}
+      rows={rows}
+      onChange={e => {
+        props.onChange(e);
+        updateRows(e);
+      }}
+      onKeyDown={e => {
+        props.onKeyDown(e);
+        updateRows(e);
+      }}
+      // Setting a key ensures that `defaultValue` will become updated
+      // when the initial value changes.
+      key={props.autoUpdate ? props.initialValue : null}
+      tabIndex={0}
+      ref={props.inputRef}
+      title={props.title}
+      defaultValue={props.initialValue}
+      autoFocus={props.autoFocus}
+    ></textarea>
+  );
+}
+
 interface ISearchEntryProps {
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
   onCaseSensitiveToggled: () => void;
   onRegexToggled: () => void;
-  onKeydown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onWordToggled: () => void;
+  onKeydown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   caseSensitive: boolean;
   useRegex: boolean;
-  searchText: string;
+  wholeWords: boolean;
+  initialSearchText: string;
   translator?: ITranslator;
 }
 
@@ -75,20 +151,24 @@ function SearchEntry(props: ISearchEntryProps): JSX.Element {
     props.useRegex ? INPUT_BUTTON_CLASS_ON : INPUT_BUTTON_CLASS_OFF,
     BUTTON_CONTENT_CLASS
   );
+  const wordButtonToggleClass = classes(
+    props.wholeWords ? INPUT_BUTTON_CLASS_ON : INPUT_BUTTON_CLASS_OFF,
+    BUTTON_CONTENT_CLASS
+  );
 
   const wrapperClass = INPUT_WRAPPER_CLASS;
 
   return (
     <div className={wrapperClass}>
-      <input
+      <SearchInput
         placeholder={trans.__('Find')}
-        className={INPUT_CLASS}
-        value={props.searchText}
         onChange={e => props.onChange(e)}
         onKeyDown={e => props.onKeydown(e)}
-        tabIndex={0}
-        ref={props.inputRef}
+        inputRef={props.inputRef}
+        initialValue={props.initialSearchText}
         title={trans.__('Find')}
+        autoFocus={true}
+        autoUpdate={true}
       />
       <button
         className={BUTTON_WRAPPER_CLASS}
@@ -99,6 +179,14 @@ function SearchEntry(props: ISearchEntryProps): JSX.Element {
         title={trans.__('Match Case')}
       >
         <caseSensitiveIcon.react className={caseButtonToggleClass} tag="span" />
+      </button>
+      <button
+        className={BUTTON_WRAPPER_CLASS}
+        onClick={() => props.onWordToggled()}
+        tabIndex={0}
+        title={trans.__('Match Whole Word')}
+      >
+        <wordIcon.react className={wordButtonToggleClass} tag="span" />
       </button>
       <button
         className={BUTTON_WRAPPER_CLASS}
@@ -113,10 +201,13 @@ function SearchEntry(props: ISearchEntryProps): JSX.Element {
 }
 
 interface IReplaceEntryProps {
+  onPreserveCaseToggled: () => void;
   onReplaceCurrent: () => void;
   onReplaceAll: () => void;
-  onReplaceKeydown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onReplaceKeydown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  preserveCase: boolean;
+  replaceOptionsSupport: IReplaceOptionsSupport | undefined;
   replaceText: string;
   translator?: ITranslator;
 }
@@ -124,17 +215,37 @@ interface IReplaceEntryProps {
 function ReplaceEntry(props: IReplaceEntryProps): JSX.Element {
   const trans = (props.translator ?? nullTranslator).load('jupyterlab');
 
+  const preserveCaseButtonToggleClass = classes(
+    props.preserveCase ? INPUT_BUTTON_CLASS_ON : INPUT_BUTTON_CLASS_OFF,
+    BUTTON_CONTENT_CLASS
+  );
+
   return (
     <div className={REPLACE_WRAPPER_CLASS}>
-      <input
-        placeholder={trans.__('Replace')}
-        className={REPLACE_ENTRY_CLASS}
-        value={props.replaceText}
-        onKeyDown={e => props.onReplaceKeydown(e)}
-        onChange={e => props.onChange(e)}
-        tabIndex={0}
-        title={trans.__('Replace')}
-      />
+      <div className={INPUT_WRAPPER_CLASS}>
+        <SearchInput
+          placeholder={trans.__('Replace')}
+          initialValue={props.replaceText ?? ''}
+          onKeyDown={e => props.onReplaceKeydown(e)}
+          onChange={e => props.onChange(e)}
+          title={trans.__('Replace')}
+          autoFocus={false}
+          autoUpdate={false}
+        />
+        {props.replaceOptionsSupport?.preserveCase ? (
+          <button
+            className={BUTTON_WRAPPER_CLASS}
+            onClick={() => props.onPreserveCaseToggled()}
+            tabIndex={0}
+            title={trans.__('Preserve Case')}
+          >
+            <caseSensitiveIcon.react
+              className={preserveCaseButtonToggleClass}
+              tag="span"
+            />
+          </button>
+        ) : null}
+      </div>
       <button
         className={REPLACE_BUTTON_WRAPPER_CLASS}
         onClick={() => props.onReplaceCurrent()}
@@ -164,19 +275,33 @@ function ReplaceEntry(props: IReplaceEntryProps): JSX.Element {
 }
 
 interface IUpDownProps {
+  keyBindings?: ISearchKeyBindings;
   onHighlightPrevious: () => void;
   onHighlightNext: () => void;
   trans: TranslationBundle;
 }
 
 function UpDownButtons(props: IUpDownProps) {
+  const nextBinding = props.keyBindings?.next;
+  const prevBinding = props.keyBindings?.previous;
+
+  const nextKeys = nextBinding
+    ? CommandRegistry.formatKeystroke(nextBinding.keys)
+    : '';
+  const prevKeys = prevBinding
+    ? CommandRegistry.formatKeystroke(prevBinding.keys)
+    : '';
+
+  const prevShortcut = prevKeys ? ` (${prevKeys})` : '';
+  const nextShortcut = nextKeys ? ` (${nextKeys})` : '';
+
   return (
     <div className={UP_DOWN_BUTTON_WRAPPER_CLASS}>
       <button
         className={BUTTON_WRAPPER_CLASS}
         onClick={() => props.onHighlightPrevious()}
         tabIndex={0}
-        title={props.trans.__('Previous Match')}
+        title={`${props.trans.__('Previous Match')}${prevShortcut}`}
       >
         <caretUpEmptyThinIcon.react
           className={classes(UP_DOWN_BUTTON_CLASS, BUTTON_CONTENT_CLASS)}
@@ -187,7 +312,7 @@ function UpDownButtons(props: IUpDownProps) {
         className={BUTTON_WRAPPER_CLASS}
         onClick={() => props.onHighlightNext()}
         tabIndex={0}
-        title={props.trans.__('Next Match')}
+        title={`${props.trans.__('Next Match')}${nextShortcut}`}
       >
         <caretDownEmptyThinIcon.react
           className={classes(UP_DOWN_BUTTON_CLASS, BUTTON_CONTENT_CLASS)}
@@ -216,34 +341,32 @@ function SearchIndices(props: ISearchIndexProps) {
 }
 
 interface IFilterToggleProps {
-  enabled: boolean;
-  toggleEnabled: () => void;
+  visible: boolean;
+  toggleVisible: () => void;
+  anyEnabled: boolean;
   trans: TranslationBundle;
 }
 
 function FilterToggle(props: IFilterToggleProps): JSX.Element {
-  let className = `${ELLIPSES_BUTTON_CLASS} ${BUTTON_CONTENT_CLASS}`;
-  if (props.enabled) {
-    className = `${className} ${ELLIPSES_BUTTON_ENABLED_CLASS}`;
+  let className = `${FILTER_BUTTON_CLASS} ${BUTTON_CONTENT_CLASS}`;
+  if (props.visible) {
+    className = `${className} ${FILTER_BUTTON_ENABLED_CLASS}`;
   }
+
+  const icon = props.anyEnabled ? filterDotIcon : filterIcon;
 
   return (
     <button
       className={BUTTON_WRAPPER_CLASS}
-      onClick={() => props.toggleEnabled()}
+      onClick={() => props.toggleVisible()}
       tabIndex={0}
       title={
-        props.enabled
+        props.visible
           ? props.trans.__('Hide Search Filters')
           : props.trans.__('Show Search Filters')
       }
     >
-      <ellipsesIcon.react
-        className={className}
-        tag="span"
-        height="20px"
-        width="20px"
-      />
+      <icon.react className={className} tag="span" height="20px" width="20px" />
     </button>
   );
 }
@@ -259,28 +382,23 @@ interface IFilterSelectionProps {
 function FilterSelection(props: IFilterSelectionProps): JSX.Element {
   return (
     <label
-      className={props.isEnabled ? '' : SEARCH_OPTIONS_DISABLED_CLASS}
+      className={
+        props.isEnabled
+          ? SEARCH_FILTER_CLASS
+          : `${SEARCH_FILTER_CLASS} ${SEARCH_FILTER_DISABLED_CLASS}`
+      }
       title={props.description}
     >
-      {props.title}
       <input
         type="checkbox"
+        className="jp-mod-styled"
         disabled={!props.isEnabled}
         checked={props.value}
         onChange={props.onToggle}
       />
+      {props.title}
     </label>
   );
-}
-
-/**
- * React search component state
- */
-interface ISearchOverlayState {
-  /**
-   * Is the filters view open?
-   */
-  filtersOpen: boolean;
 }
 
 interface ISearchOverlayProps {
@@ -309,9 +427,21 @@ interface ISearchOverlayProps {
    */
   isReadOnly: boolean;
   /**
-   * Whether or not the replace entry row is visible
+   * Whether to preserve case when replacing.
+   */
+  preserveCase: boolean;
+  /**
+   * Whether the replace entry row is visible.
    */
   replaceEntryVisible: boolean;
+  /**
+   * Whther the filters grid is visible.
+   */
+  filtersVisible: boolean;
+  /**
+   * Support for replace options
+   */
+  replaceOptionsSupport?: IReplaceOptionsSupport;
   /**
    * Replacement expression
    */
@@ -319,11 +449,11 @@ interface ISearchOverlayProps {
   /**
    * The text in the search entry
    */
-  searchText: string;
+  initialSearchText: string;
   /**
    * Search input reference.
    */
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchInputRef: React.RefObject<HTMLTextAreaElement>;
   /**
    * Total number of search matches.
    */
@@ -336,6 +466,10 @@ interface ISearchOverlayProps {
    * Whether the search defines a regular expression or not.
    */
   useRegex: boolean;
+  /**
+   * Whether the search matches entire words or any substring.
+   */
+  wholeWords: boolean;
   /**
    * Callback on case sensitive toggled.
    */
@@ -353,15 +487,27 @@ interface ISearchOverlayProps {
    *
    * The provided filter values are the one changing.
    */
-  onFiltersChanged: (f: IFilters) => void;
+  onFilterChanged: (name: string, value: boolean) => Promise<void>;
+  /**
+   * Callback on filters grid visibility change.
+   */
+  onFiltersVisibilityChanged: (v: boolean) => void;
   /**
    * Callback on close button click.
    */
   onClose: () => void;
   /**
-   * Callback on use regular expression toggled
+   * Callback on preserve case in replace toggled.
+   */
+  onPreserveCaseToggled: () => void;
+  /**
+   * Callback on use regular expression toggled.
    */
   onRegexToggled: () => void;
+  /**
+   * Callback on use whole word toggled.
+   */
+  onWordToggled: () => void;
   /**
    * Callback on replace all button click.
    */
@@ -382,48 +528,56 @@ interface ISearchOverlayProps {
    * Callback on search expression change.
    */
   onSearchChanged: (q: string) => void;
+  /**
+   * Provides information about keybindings for display.
+   */
+  keyBindings?: ISearchKeyBindings;
 }
 
-class SearchOverlay extends React.Component<
-  ISearchOverlayProps,
-  ISearchOverlayState
-> {
+class SearchOverlay extends React.Component<ISearchOverlayProps> {
   constructor(props: ISearchOverlayProps) {
     super(props);
     this.translator = props.translator || nullTranslator;
-    this.state = {
-      filtersOpen: false
-    };
   }
 
   private _onSearchChange(event: React.ChangeEvent) {
-    const searchText = (event.target as HTMLInputElement).value;
+    const searchText = (event.target as HTMLTextAreaElement).value;
     this.props.onSearchChanged(searchText);
   }
 
   private _onSearchKeydown(event: React.KeyboardEvent) {
     if (event.keyCode === 13) {
       // Enter pressed
-      event.preventDefault();
       event.stopPropagation();
-      event.shiftKey
-        ? this.props.onHighlightPrevious()
-        : this.props.onHighlightNext();
-    } else if (event.keyCode === 27) {
-      // Escape pressed
       event.preventDefault();
-      event.stopPropagation();
-      this._onClose();
+      if (event.ctrlKey) {
+        const textarea = event.target as HTMLTextAreaElement;
+        this._insertNewLine(textarea);
+        this.props.onSearchChanged(textarea.value);
+      } else {
+        event.shiftKey
+          ? this.props.onHighlightPrevious()
+          : this.props.onHighlightNext();
+      }
     }
   }
 
   private _onReplaceKeydown(event: React.KeyboardEvent) {
     if (event.keyCode === 13) {
       // Enter pressed
-      event.preventDefault();
       event.stopPropagation();
-      this.props.onReplaceCurrent();
+      event.preventDefault();
+      if (event.ctrlKey) {
+        this._insertNewLine(event.target as HTMLTextAreaElement);
+      } else {
+        this.props.onReplaceCurrent();
+      }
     }
+  }
+
+  private _insertNewLine(textarea: HTMLTextAreaElement) {
+    const [start, end] = [textarea.selectionStart, textarea.selectionEnd];
+    textarea.setRangeText('\n', start, end, 'end');
   }
 
   private _onClose() {
@@ -433,24 +587,24 @@ class SearchOverlay extends React.Component<
 
   private _onReplaceToggled() {
     // Deactivate invalid replace filters
-    const filters = { ...this.props.filters };
     if (!this.props.replaceEntryVisible) {
       for (const key in this.props.filtersDefinition) {
         const filter = this.props.filtersDefinition[key];
         if (!filter.supportReplace) {
-          filters[key] = false;
+          this.props.onFilterChanged(key, false).catch(reason => {
+            console.error(
+              `Fail to update filter value for ${filter.title}:\n${reason}`
+            );
+          });
         }
       }
     }
-    this.props.onFiltersChanged(filters);
 
     this.props.onReplaceEntryShown(!this.props.replaceEntryVisible);
   }
 
-  private _toggleFiltersOpen() {
-    this.setState(prevState => ({
-      filtersOpen: !prevState.filtersOpen
-    }));
+  private _toggleFiltersVisibility() {
+    this.props.onFiltersVisibilityChanged(!this.props.filtersVisible);
   }
 
   render() {
@@ -462,11 +616,23 @@ class SearchOverlay extends React.Component<
     const hasFilters = Object.keys(filters).length > 0;
     const filterToggle = hasFilters ? (
       <FilterToggle
-        enabled={this.state.filtersOpen}
-        toggleEnabled={() => this._toggleFiltersOpen()}
+        visible={this.props.filtersVisible}
+        anyEnabled={Object.keys(filters).some(name => {
+          const filter = filters[name];
+          return this.props.filters[name] ?? filter.default;
+        })}
+        toggleVisible={() => this._toggleFiltersVisibility()}
         trans={trans}
       />
     ) : null;
+
+    const selectionBinding = this.props.keyBindings?.toggleSearchInSelection;
+    const selectionKeys = selectionBinding
+      ? CommandRegistry.formatKeystroke(selectionBinding.keys)
+      : '';
+
+    const selectionKeyHint = selectionKeys ? ` (${selectionKeys})` : '';
+
     const filter = hasFilters ? (
       <div className={SEARCH_OPTIONS_CLASS}>
         {Object.keys(filters).map(name => {
@@ -475,12 +641,16 @@ class SearchOverlay extends React.Component<
             <FilterSelection
               key={name}
               title={filter.title}
-              description={filter.description}
+              description={
+                filter.description +
+                (name == 'selection' ? selectionKeyHint : '')
+              }
               isEnabled={!showReplace || filter.supportReplace}
-              onToggle={() => {
-                const newFilter: IFilters = {};
-                newFilter[name] = !this.props.filters[name];
-                this.props.onFiltersChanged(newFilter);
+              onToggle={async () => {
+                await this.props.onFilterChanged(
+                  name,
+                  !this.props.filters[name]
+                );
               }}
               value={this.props.filters[name] ?? filter.default}
             />
@@ -518,15 +688,20 @@ class SearchOverlay extends React.Component<
             inputRef={this.props.searchInputRef}
             useRegex={this.props.useRegex}
             caseSensitive={this.props.caseSensitive}
+            wholeWords={this.props.wholeWords}
             onCaseSensitiveToggled={this.props.onCaseSensitiveToggled}
             onRegexToggled={this.props.onRegexToggled}
-            onKeydown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+            onWordToggled={this.props.onWordToggled}
+            onKeydown={(e: React.KeyboardEvent<HTMLTextAreaElement>) =>
               this._onSearchKeydown(e)
             }
-            onChange={(e: React.ChangeEvent) => this._onSearchChange(e)}
-            searchText={this.props.searchText}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+              this._onSearchChange(e)
+            }
+            initialSearchText={this.props.initialSearchText}
             translator={this.translator}
           />
+          {filterToggle}
           <SearchIndices
             currentIndex={this.props.currentIndex}
             totalMatches={this.props.totalMatches ?? 0}
@@ -539,8 +714,8 @@ class SearchOverlay extends React.Component<
               this.props.onHighlightNext();
             }}
             trans={trans}
+            keyBindings={this.props.keyBindings}
           />
-          {showReplace ? null : filterToggle}
           <button
             className={BUTTON_WRAPPER_CLASS}
             onClick={() => this._onClose()}
@@ -558,33 +733,30 @@ class SearchOverlay extends React.Component<
           {showReplace ? (
             <>
               <ReplaceEntry
+                onPreserveCaseToggled={this.props.onPreserveCaseToggled}
                 onReplaceKeydown={(e: React.KeyboardEvent) =>
                   this._onReplaceKeydown(e)
                 }
                 onChange={(e: React.ChangeEvent) =>
                   this.props.onReplaceChanged(
-                    (e.target as HTMLInputElement).value
+                    (e.target as HTMLTextAreaElement).value
                   )
                 }
                 onReplaceCurrent={() => this.props.onReplaceCurrent()}
                 onReplaceAll={() => this.props.onReplaceAll()}
+                replaceOptionsSupport={this.props.replaceOptionsSupport}
                 replaceText={this.props.replaceText}
+                preserveCase={this.props.preserveCase}
                 translator={this.translator}
               />
               <div className={SPACER_CLASS}></div>
-              {filterToggle}
             </>
           ) : null}
         </div>
-        {this.state.filtersOpen ? filter : null}
+        {this.props.filtersVisible ? filter : null}
         {!!this.props.errorMessage && (
           <div className={REGEX_ERROR_CLASS}>{this.props.errorMessage}</div>
         )}
-        <div className={SEARCH_DOCUMENT_LOADING}>
-          {trans.__(
-            'This document is still loading. Only loaded content will appear in search results until the entire document loads.'
-          )}
-        </div>
       </>
     );
   }
@@ -601,11 +773,18 @@ export class SearchDocumentView extends VDomRenderer<SearchDocumentModel> {
    *
    * @param model Search document model
    * @param translator Application translator object
+   * @param keyBindings Search keybindings
+   *
    */
-  constructor(model: SearchDocumentModel, protected translator?: ITranslator) {
+  constructor(
+    model: SearchDocumentModel,
+    protected translator?: ITranslator,
+    keyBindings?: ISearchKeyBindings
+  ) {
     super(model);
     this.addClass(OVERLAY_CLASS);
-    this._searchInput = React.createRef<HTMLInputElement>();
+    this._searchInput = React.createRef<HTMLTextAreaElement>();
+    this._keyBindings = keyBindings;
   }
 
   /**
@@ -625,12 +804,15 @@ export class SearchDocumentView extends VDomRenderer<SearchDocumentModel> {
   }
 
   /**
-   * Set the search text
-   *
-   * It does not trigger a view update.
+   * Set the initial search text.
    */
   setSearchText(search: string): void {
-    this.model.searchExpression = search;
+    this.model.initialQuery = search;
+    // Only set the new search text to search expression if there is any
+    // to avoid nullifying the one that was remembered from last time.
+    if (search) {
+      this.model.searchExpression = search;
+    }
   }
 
   /**
@@ -649,6 +831,18 @@ export class SearchDocumentView extends VDomRenderer<SearchDocumentModel> {
     this.setReplaceInputVisibility(true);
   }
 
+  /**
+   * A message handler invoked on a `'close-request'` message.
+   *
+   * #### Notes
+   * On top of the default implementation emit closed signal and end model query.
+   */
+  protected onCloseRequest(msg: Message): void {
+    super.onCloseRequest(msg);
+    this._closed.emit();
+    void this.model.endQuery();
+  }
+
   protected setReplaceInputVisibility(v: boolean): void {
     if (this._showReplace !== v) {
       this._showReplace = v;
@@ -656,7 +850,24 @@ export class SearchDocumentView extends VDomRenderer<SearchDocumentModel> {
     }
   }
 
+  protected setFiltersVisibility(v: boolean): void {
+    if (this._showFilters !== v) {
+      this._showFilters = v;
+      this.update();
+    }
+  }
+
   render(): JSX.Element {
+    return this.model.filtersDefinitionChanged ? (
+      <UseSignal signal={this.model.filtersDefinitionChanged}>
+        {() => this._renderOverlay()}
+      </UseSignal>
+    ) : (
+      this._renderOverlay()
+    );
+  }
+
+  private _renderOverlay() {
     return (
       <SearchOverlay
         caseSensitive={this.model.caseSensitive}
@@ -665,35 +876,48 @@ export class SearchDocumentView extends VDomRenderer<SearchDocumentModel> {
         errorMessage={this.model.parsingError}
         filters={this.model.filters}
         filtersDefinition={this.model.filtersDefinition}
+        preserveCase={this.model.preserveCase}
         replaceEntryVisible={this._showReplace}
+        filtersVisible={this._showFilters}
+        replaceOptionsSupport={this.model.replaceOptionsSupport}
         replaceText={this.model.replaceText}
-        searchText={this.model.searchExpression}
-        searchInputRef={this._searchInput}
+        initialSearchText={this.model.initialQuery}
+        searchInputRef={
+          this._searchInput as React.RefObject<HTMLTextAreaElement>
+        }
         totalMatches={this.model.totalMatches}
         translator={this.translator}
         useRegex={this.model.useRegex}
+        wholeWords={this.model.wholeWords}
         onCaseSensitiveToggled={() => {
           this.model.caseSensitive = !this.model.caseSensitive;
         }}
         onRegexToggled={() => {
           this.model.useRegex = !this.model.useRegex;
         }}
-        onFiltersChanged={(filters: IFilters) => {
-          this.model.filters = { ...this.model.filters, ...filters };
+        onWordToggled={() => {
+          this.model.wholeWords = !this.model.wholeWords;
+        }}
+        onFilterChanged={async (name: string, value: boolean) => {
+          await this.model.setFilter(name, value);
+        }}
+        onFiltersVisibilityChanged={(v: boolean) => {
+          this.setFiltersVisibility(v);
         }}
         onHighlightNext={() => {
-          this.model.highlightNext();
+          void this.model.highlightNext();
         }}
         onHighlightPrevious={() => {
-          this.model.highlightPrevious();
+          void this.model.highlightPrevious();
+        }}
+        onPreserveCaseToggled={() => {
+          this.model.preserveCase = !this.model.preserveCase;
         }}
         onSearchChanged={(q: string) => {
           this.model.searchExpression = q;
         }}
-        onClose={async () => {
-          Widget.detach(this);
-          this._closed.emit();
-          await this.model.endQuery();
+        onClose={() => {
+          this.close();
         }}
         onReplaceEntryShown={(v: boolean) => {
           this.setReplaceInputVisibility(v);
@@ -702,16 +926,19 @@ export class SearchDocumentView extends VDomRenderer<SearchDocumentModel> {
           this.model.replaceText = q;
         }}
         onReplaceCurrent={() => {
-          this.model.replaceCurrentMatch();
+          void this.model.replaceCurrentMatch();
         }}
         onReplaceAll={() => {
-          this.model.replaceAllMatches();
+          void this.model.replaceAllMatches();
         }}
+        keyBindings={this._keyBindings}
       ></SearchOverlay>
     );
   }
 
-  private _searchInput: React.RefObject<HTMLInputElement>;
+  private _searchInput: React.RefObject<HTMLTextAreaElement>;
   private _showReplace = false;
+  private _showFilters = false;
   private _closed = new Signal<this, void>(this);
+  private _keyBindings?: ISearchKeyBindings;
 }

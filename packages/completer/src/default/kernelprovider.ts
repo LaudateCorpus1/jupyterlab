@@ -2,8 +2,8 @@
 // Distributed under the terms of the Modified BSD License.
 
 import { Text } from '@jupyterlab/coreutils';
-import { IObservableString } from '@jupyterlab/observables';
 import { KernelMessage } from '@jupyterlab/services';
+import { SourceChange } from '@jupyter/ydoc';
 import { JSONObject } from '@lumino/coreutils';
 import { CompletionHandler } from '../handler';
 import { ICompletionContext, ICompletionProvider } from '../tokens';
@@ -14,6 +14,12 @@ export const KERNEL_PROVIDER_ID = 'CompletionProvider:kernel';
  * A kernel connector for completion handlers.
  */
 export class KernelCompleterProvider implements ICompletionProvider {
+  readonly identifier = KERNEL_PROVIDER_ID;
+
+  readonly rank: number = 550;
+
+  readonly renderer = null;
+
   /**
    * The kernel completion provider is applicable only if the kernel is available.
    * @param context - additional information about context of completion request
@@ -52,10 +58,11 @@ export class KernelCompleterProvider implements ICompletionProvider {
     }
 
     const items = new Array<CompletionHandler.ICompletionItem>();
-    const metadata = response.metadata
-      ._jupyter_types_experimental as Array<JSONObject>;
+    const metadata = response.metadata._jupyter_types_experimental as
+      | Array<JSONObject>
+      | undefined;
     response.matches.forEach((label, index) => {
-      if (metadata[index]) {
+      if (metadata && metadata[index]) {
         items.push({
           label,
           type: metadata[index].type as string,
@@ -83,7 +90,7 @@ export class KernelCompleterProvider implements ICompletionProvider {
   ): Promise<CompletionHandler.ICompletionItem> {
     const { editor, session } = context;
     if (session && editor) {
-      let code = editor.model.value.text;
+      let code = editor.model.sharedModel.getSource();
 
       const position = editor.getCursorPosition();
       let offset = Text.jsIndexToCharIndex(editor.getOffsetAt(position), code);
@@ -117,20 +124,20 @@ export class KernelCompleterProvider implements ICompletionProvider {
    * Kernel provider will activate the completer in continuous mode after
    * the `.` character.
    */
-  shouldShowContinuousHint(
-    visible: boolean,
-    changed: IObservableString.IChangedArgs
-  ): boolean {
-    if (changed.type === 'remove') {
-      return false;
-    }
-    if (changed.value === '.') {
+  shouldShowContinuousHint(visible: boolean, changed: SourceChange): boolean {
+    const sourceChange = changed.sourceChange;
+    if (sourceChange == null) {
       return true;
     }
 
-    return !visible && changed.value.trim().length > 0;
-  }
+    if (sourceChange.some(delta => delta.delete != null)) {
+      return false;
+    }
 
-  readonly identifier = KERNEL_PROVIDER_ID;
-  readonly renderer = null;
+    return sourceChange.some(
+      delta =>
+        delta.insert != null &&
+        (delta.insert === '.' || (!visible && delta.insert.trim().length > 0))
+    );
+  }
 }

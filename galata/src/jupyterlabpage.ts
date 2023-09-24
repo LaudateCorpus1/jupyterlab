@@ -1,10 +1,11 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
+import type { Notification } from '@jupyterlab/apputils';
 import type { ISettingRegistry } from '@jupyterlab/settingregistry';
-import type { ElementHandle, Page, Response } from '@playwright/test';
-import * as path from 'path';
+import type { ElementHandle, Locator, Page, Response } from '@playwright/test';
 import { ContentsHelper } from './contents';
+import type { IPluginNameToInterfaceMap } from './extension';
 import {
   ActivityHelper,
   DebuggerHelper,
@@ -16,9 +17,9 @@ import {
   PerformanceHelper,
   SidebarHelper,
   StatusBarHelper,
+  StyleHelper,
   ThemeHelper
 } from './helpers';
-import { IPluginNameToInterfaceMap, PLUGIN_ID_SETTINGS } from './inpage/tokens';
 import * as Utils from './utils';
 
 /**
@@ -66,6 +67,11 @@ export interface IJupyterLabPage {
   readonly notebook: NotebookHelper;
 
   /**
+   * JupyterLab notifications
+   */
+  readonly notifications: Promise<Notification.INotification[]>;
+
+  /**
    * Webbrowser performance helpers
    */
   readonly performance: PerformanceHelper;
@@ -78,12 +84,23 @@ export interface IJupyterLabPage {
    */
   readonly sidebar: SidebarHelper;
   /**
+   * JupyterLab style helpers
+   */
+  readonly style: StyleHelper;
+  /**
    * JupyterLab theme helpers
    */
   readonly theme: ThemeHelper;
 
   /**
+   * JupyterLab launcher tab
+   */
+  readonly launcher: Locator;
+
+  /**
    * Selector for launcher tab
+   *
+   * @deprecated You should use locator selector {@link launcher}
    */
   readonly launcherSelector: string;
 
@@ -170,8 +187,9 @@ export interface IJupyterLabPage {
        * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
        * - `'load'` - consider operation to be finished when the `load` event is fired.
        * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500` ms.
+       * - `'commit'` - consider operation to be finished when network response is received and the document started loading.
        */
-      waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+      waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
     }
   ): Promise<Response | null>;
 
@@ -215,6 +233,8 @@ export interface IJupyterLabPage {
    * Factory for active activity tab xpath
    *
    * @returns The selector
+   *
+   * @deprecated You should use locator selector `getByRole('main').locator('.jp-mod-current[role="tab"]')`
    */
   xpBuildActiveActivityTabSelector(): string;
 
@@ -222,6 +242,9 @@ export interface IJupyterLabPage {
    * Factory for activity panel xpath by id
    * @param id Panel id
    * @returns The selector
+   *
+   * @deprecated You should use locator selector `getByRole('main').getByRole('tabpanel', { name })`
+   *   where `name` is the name of the tab.
    */
   xpBuildActivityPanelSelector(id: string): string;
 
@@ -230,6 +253,8 @@ export interface IJupyterLabPage {
    *
    * @param name Activity name
    * @returns The selector
+   *
+   * @deprecated You should use locator selector `getByRole('main').getByRole('tab', { name })`
    */
   xpBuildActivityTabSelector(name: string): string;
 
@@ -238,6 +263,8 @@ export interface IJupyterLabPage {
    *
    * @param className Class name
    * @returns The selector
+   *
+   * @deprecated You should use locator CSS selector `locator('.className')`
    */
   xpContainsClass(className: string): string;
 }
@@ -262,7 +289,7 @@ export class JupyterLabPage implements IJupyterLabPage {
   ) {
     this.waitIsReady = waitForApplication;
     this.activity = new ActivityHelper(page);
-    this.contents = new ContentsHelper(baseURL, page);
+    this.contents = new ContentsHelper(page.context().request, page);
     this.filebrowser = new FileBrowserHelper(page, this.contents);
     this.kernel = new KernelHelper(page);
     this.logconsole = new LogConsoleHelper(page);
@@ -277,6 +304,7 @@ export class JupyterLabPage implements IJupyterLabPage {
     this.performance = new PerformanceHelper(page);
     this.statusbar = new StatusBarHelper(page, this.menu);
     this.sidebar = new SidebarHelper(page, this.menu);
+    this.style = new StyleHelper(page);
     this.theme = new ThemeHelper(page);
     this.debugger = new DebuggerHelper(page, this.sidebar, this.notebook);
   }
@@ -317,6 +345,13 @@ export class JupyterLabPage implements IJupyterLabPage {
   readonly notebook: NotebookHelper;
 
   /**
+   * JupyterLab notifications
+   */
+  get notifications(): Promise<Notification.INotification[]> {
+    return this.page.evaluate(async () => window.galata.getNotifications());
+  }
+
+  /**
    * Webbrowser performance helpers
    */
   readonly performance: PerformanceHelper;
@@ -330,6 +365,12 @@ export class JupyterLabPage implements IJupyterLabPage {
    * JupyterLab sidebar helpers
    */
   readonly sidebar: SidebarHelper;
+
+  /**
+   * JupyterLab style helpers
+   */
+  readonly style: StyleHelper;
+
   /**
    * JupyterLab theme helpers
    */
@@ -341,7 +382,16 @@ export class JupyterLabPage implements IJupyterLabPage {
   readonly debugger: DebuggerHelper;
 
   /**
+   * JupyterLab launcher tab
+   */
+  get launcher(): Locator {
+    return this.activity.launcher;
+  }
+
+  /**
    * Selector for launcher tab
+   *
+   * @deprecated You should use locator selector {@link launcher}
    */
   get launcherSelector(): string {
     return this.activity.launcherSelector;
@@ -455,14 +505,9 @@ export class JupyterLabPage implements IJupyterLabPage {
   /**
    * Whether JupyterLab is in simple mode or not
    */
-  isInSimpleMode = async (): Promise<boolean> => {
-    const toggle = await this.page.$(
-      '#jp-single-document-mode button.jp-switch'
-    );
-    const checked = (await toggle?.getAttribute('aria-checked')) === 'true';
-
-    return checked;
-  };
+  isInSimpleMode(): Promise<boolean> {
+    return Utils.isInSimpleMode(this.page);
+  }
 
   /**
    * Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
@@ -492,16 +537,26 @@ export class JupyterLabPage implements IJupyterLabPage {
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
      * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500` ms.
+     * - `'commit'` - consider operation to be finished when network response is received and the document started loading.
      */
-    waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+    waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+
+    /**
+     * Whether to wait for fixture `waitIsReady` or not when reloading.
+     *
+     * Default is true.
+     */
+    waitForIsReady?: boolean;
   }): Promise<Response | null> {
     const response = await this.page.reload({
-      ...(options ?? {}),
+      timeout: options?.timeout,
       waitUntil: options?.waitUntil ?? 'domcontentloaded'
     });
     await this.waitForAppStarted();
     await this.hookHelpersUp();
-    await this.waitIsReady(this.page, this);
+    if (options?.waitForIsReady ?? true) {
+      await this.waitIsReady(this.page, this);
+    }
     return response;
   }
 
@@ -520,13 +575,16 @@ export class JupyterLabPage implements IJupyterLabPage {
     // Reset the layout
     await this.page.evaluate(
       async ({ pluginId }) => {
-        const settingRegistry = (await window.galataip.getPlugin(
+        const settingRegistry = (await window.galata.getPlugin(
           pluginId
         )) as ISettingRegistry;
         const SHELL_ID = '@jupyterlab/application-extension:shell';
         await settingRegistry.remove(SHELL_ID, 'layout');
       },
-      { pluginId: PLUGIN_ID_SETTINGS as keyof IPluginNameToInterfaceMap }
+      {
+        pluginId:
+          '@jupyterlab/apputils-extension:settings' as keyof IPluginNameToInterfaceMap
+      }
     );
     // show Files tab on sidebar
     await this.sidebar.openTab('filebrowser');
@@ -589,6 +647,8 @@ export class JupyterLabPage implements IJupyterLabPage {
 
   /**
    * Factory for active activity tab xpath
+   *
+   * @deprecated You should use locator selector `getByRole('main').locator('.jp-mod-current[role="tab"]')`
    */
   xpBuildActiveActivityTabSelector(): string {
     return Utils.xpBuildActiveActivityTabSelector();
@@ -597,6 +657,9 @@ export class JupyterLabPage implements IJupyterLabPage {
   /**
    * Factory for activity panel xpath by id
    * @param id Panel id
+   *
+   * @deprecated You should use locator selector `getByRole('main').getByRole('tabpanel', { name })`
+   *   where `name` is the name of the tab.
    */
   xpBuildActivityPanelSelector(id: string): string {
     return Utils.xpBuildActivityPanelSelector(id);
@@ -605,6 +668,8 @@ export class JupyterLabPage implements IJupyterLabPage {
   /**
    * Factory for activity tab xpath by name
    * @param name Activity name
+   *
+   * @deprecated You should use locator selector `getByRole('main').getByRole('tab', { name })`
    */
   xpBuildActivityTabSelector(name: string): string {
     return Utils.xpBuildActivityTabSelector(name);
@@ -613,6 +678,8 @@ export class JupyterLabPage implements IJupyterLabPage {
   /**
    * Factory for element containing a given class xpath
    * @param className Class name
+   *
+   * @deprecated You should use locator CSS selector `locator('.className')`
    */
   xpContainsClass(className: string): string {
     return Utils.xpContainsClass(className);
@@ -622,21 +689,17 @@ export class JupyterLabPage implements IJupyterLabPage {
    * Inject the galata in-page helpers
    */
   protected async hookHelpersUp(): Promise<void> {
-    // Insert Galata in page helpers
-    await this.page.addScriptTag({
-      path: path.resolve(__dirname, './lib-inpage/inpage.js')
-    });
-
+    // Check galata helpers are loaded
     const galataipDefined = await this.page.evaluate(() => {
-      return Promise.resolve(typeof window.galataip === 'object');
+      return Promise.resolve(typeof window.galata === 'object');
     });
 
     if (!galataipDefined) {
-      throw new Error('Failed to inject galataip object into browser context');
+      throw new Error('Failed to activate galata extension');
     }
 
     const jlabAccessible = await this.page.evaluate(() => {
-      return Promise.resolve(typeof window.galataip.app === 'object');
+      return Promise.resolve(typeof window.galata.app === 'object');
     });
 
     if (!jlabAccessible) {
@@ -650,11 +713,7 @@ export class JupyterLabPage implements IJupyterLabPage {
   protected waitForAppStarted = async (): Promise<void> => {
     return this.waitForCondition(() =>
       this.page.evaluate(async () => {
-        if (typeof window.jupyterlab === 'object') {
-          // Wait for plugins to be loaded
-          await window.jupyterlab.started;
-          return true;
-        } else if (typeof window.jupyterapp === 'object') {
+        if (typeof window.jupyterapp === 'object') {
           // Wait for plugins to be loaded
           await window.jupyterapp.started;
           return true;

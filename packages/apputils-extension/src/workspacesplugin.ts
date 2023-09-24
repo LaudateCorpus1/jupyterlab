@@ -14,7 +14,7 @@ import {
   DocumentWidget,
   IDocumentWidget
 } from '@jupyterlab/docregistry';
-import { FileBrowser, IFileBrowserFactory } from '@jupyterlab/filebrowser';
+import { IDefaultFileBrowser } from '@jupyterlab/filebrowser';
 import { Contents, Workspace, WorkspaceManager } from '@jupyterlab/services';
 import { IStateDB } from '@jupyterlab/statedb';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
@@ -36,9 +36,10 @@ const ICON_NAME = 'jp-JupyterIcon';
  */
 export const workspacesPlugin: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlab/apputils-extension:workspaces',
+  description: 'Add workspace file type and commands.',
   autoStart: true,
   requires: [
-    IFileBrowserFactory,
+    IDefaultFileBrowser,
     IWindowResolver,
     IStateDB,
     ITranslator,
@@ -47,7 +48,7 @@ export const workspacesPlugin: JupyterFrontEndPlugin<void> = {
   optional: [IRouter],
   activate: (
     app: JupyterFrontEnd,
-    fbf: IFileBrowserFactory,
+    fileBrowser: IDefaultFileBrowser,
     resolver: IWindowResolver,
     state: IStateDB,
     translator: ITranslator,
@@ -79,7 +80,7 @@ export const workspacesPlugin: JupyterFrontEndPlugin<void> = {
       execute: async () => {
         const data = app.serviceManager.workspaces.fetch(resolver.name);
         await Private.saveAs(
-          fbf.defaultBrowser,
+          fileBrowser,
           app.serviceManager.contents,
           data,
           state,
@@ -95,13 +96,7 @@ export const workspacesPlugin: JupyterFrontEndPlugin<void> = {
         const data = app.serviceManager.workspaces.fetch(resolver.name);
         const lastSave = (await state.fetch(LAST_SAVE_ID)) as string;
         if (lastSave === undefined) {
-          await Private.saveAs(
-            fbf.defaultBrowser,
-            contents,
-            data,
-            state,
-            translator
-          );
+          await Private.saveAs(fileBrowser, contents, data, state, translator);
         } else {
           await Private.save(lastSave, contents, data, state);
         }
@@ -146,7 +141,7 @@ namespace Private {
    * Default location is the current directory in the file browser
    */
   export async function saveAs(
-    browser: FileBrowser,
+    browser: IDefaultFileBrowser,
     contents: Contents.IManager,
     data: Promise<Workspace.IWorkspace>,
     state: IStateDB,
@@ -268,11 +263,14 @@ namespace Private {
   ): Promise<string | null> {
     translator = translator || nullTranslator;
     const trans = translator.load('jupyterlab');
-    const saveBtn = Dialog.okButton({ label: trans.__('Save') });
+    const saveBtn = Dialog.okButton({
+      label: trans.__('Save'),
+      ariaLabel: trans.__('Save Current Workspace')
+    });
     const result = await showDialog({
       title: trans.__('Save Current Workspace As…'),
       body: new SaveWidget(defaultPath),
-      buttons: [Dialog.cancelButton({ label: trans.__('Cancel') }), saveBtn]
+      buttons: [Dialog.cancelButton(), saveBtn]
     });
     if (result.button.label === trans.__('Save')) {
       return result.value;
