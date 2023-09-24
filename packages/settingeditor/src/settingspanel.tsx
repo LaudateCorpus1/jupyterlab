@@ -3,14 +3,18 @@
 | Distributed under the terms of the Modified BSD License.
 |----------------------------------------------------------------------------*/
 
-import { ISettingRegistry, Settings } from '@jupyterlab/settingregistry';
-import { ITranslator } from '@jupyterlab/translation';
-import { IFormComponentRegistry } from '@jupyterlab/ui-components';
-import { ISignal } from '@lumino/signaling';
 import React, { useEffect, useState } from 'react';
+
+import { Settings } from '@jupyterlab/settingregistry';
+import { ITranslator } from '@jupyterlab/translation';
+import { IFormRendererRegistry } from '@jupyterlab/ui-components';
+import { ISignal } from '@lumino/signaling';
 import { PluginList } from './pluginlist';
 import { SettingsFormEditor } from './SettingsFormEditor';
+import { SettingsEditorPlaceholder } from './InstructionsPlaceholder';
 
+import type { Field } from '@rjsf/utils';
+import type { SettingsEditor } from './settingseditor';
 export interface ISettingsPanelProps {
   /**
    * List of Settings objects that provide schema and values
@@ -22,7 +26,7 @@ export interface ISettingsPanelProps {
    * Form component registry that provides renderers
    * for the form editor.
    */
-  editorRegistry: IFormComponentRegistry;
+  editorRegistry: IFormRendererRegistry;
 
   /**
    * Handler for when selection change is triggered by scrolling
@@ -54,16 +58,13 @@ export interface ISettingsPanelProps {
   /**
    * Signal that sends updated filter when search value changes.
    */
-  updateFilterSignal: ISignal<
-    PluginList,
-    (plugin: ISettingRegistry.IPlugin) => string[] | null
-  >;
+  updateFilterSignal: ISignal<PluginList, SettingsEditor.PluginSearchFilter>;
 
   /**
    * If the settings editor is created with an initial search query, an initial
    * filter function is passed to the settings panel.
    */
-  initialFilter: (item: ISettingRegistry.IPlugin) => string[] | null;
+  initialFilter: SettingsEditor.PluginSearchFilter;
 }
 
 /**
@@ -81,18 +82,10 @@ export const SettingsPanel: React.FC<ISettingsPanelProps> = ({
   translator,
   initialFilter
 }: ISettingsPanelProps): JSX.Element => {
-  const [expandedPlugin, setExpandedPlugin] = useState<string | null>(null);
-  const [filterPlugin, setFilter] = useState<
-    (plugin: ISettingRegistry.IPlugin) => string[] | null
-  >(() => initialFilter);
-
-  // Refs used to keep track of "selected" plugin based on scroll location
-  const editorRefs: {
-    [pluginId: string]: React.RefObject<HTMLDivElement>;
-  } = {};
-  for (const setting of settings) {
-    editorRefs[setting.id] = React.useRef(null);
-  }
+  const [activePluginId, setActivePluginId] = useState<string | null>(null);
+  const [filterPlugin, setFilter] = useState<SettingsEditor.PluginSearchFilter>(
+    initialFilter ? () => initialFilter : null
+  );
   const wrapperRef: React.RefObject<HTMLDivElement> = React.useRef(null);
   const editorDirtyStates: React.RefObject<{
     [id: string]: boolean;
@@ -101,34 +94,16 @@ export const SettingsPanel: React.FC<ISettingsPanelProps> = ({
   useEffect(() => {
     const onFilterUpdate = (
       list: PluginList,
-      newFilter: (plugin: ISettingRegistry.IPlugin) => string[] | null
+      newFilter: SettingsEditor.PluginSearchFilter
     ) => {
-      setFilter(() => newFilter);
-      for (const pluginSettings of settings) {
-        const filtered = newFilter(pluginSettings.plugin);
-        if (filtered === null || filtered.length > 0) {
-          setExpandedPlugin(pluginSettings.id);
-          break;
-        }
-      }
+      newFilter ? setFilter(() => newFilter) : setFilter(null);
     };
-
-    // Set first visible plugin as expanded plugin on initial load.
-    for (const pluginSettings of settings) {
-      const filtered = filterPlugin(pluginSettings.plugin);
-      if (filtered === null || filtered.length > 0) {
-        setExpandedPlugin(pluginSettings.id);
-        break;
-      }
-    }
 
     // When filter updates, only show plugins that match search.
     updateFilterSignal.connect(onFilterUpdate);
 
     const onSelectChange = (list: PluginList, pluginId: string) => {
-      setExpandedPlugin(expandedPlugin !== pluginId ? pluginId : null);
-      // Scroll to the plugin when a selection is made in the left panel.
-      editorRefs[pluginId]?.current?.scrollIntoView(true);
+      setActivePluginId(pluginId);
     };
     handleSelectSignal?.connect?.(onSelectChange);
 
@@ -138,46 +113,68 @@ export const SettingsPanel: React.FC<ISettingsPanelProps> = ({
     };
   }, []);
 
-  const updateDirtyStates = (id: string, dirty: boolean) => {
-    if (editorDirtyStates.current) {
-      editorDirtyStates.current[id] = dirty;
-      for (const editor in editorDirtyStates.current) {
-        if (editorDirtyStates.current[editor]) {
-          updateDirtyState(true);
-          return;
+  const updateDirtyStates = React.useCallback(
+    (id: string, dirty: boolean) => {
+      if (editorDirtyStates.current) {
+        editorDirtyStates.current[id] = dirty;
+        for (const editor in editorDirtyStates.current) {
+          if (editorDirtyStates.current[editor]) {
+            updateDirtyState(true);
+            return;
+          }
         }
       }
-    }
-    updateDirtyState(false);
-  };
+      updateDirtyState(false);
+    },
+    [editorDirtyStates, updateDirtyState]
+  );
+
+  const renderers = React.useMemo(
+    () =>
+      Object.entries(editorRegistry.renderers).reduce<{
+        [plugin: string]: { [property: string]: Field };
+      }>((agg, [id, renderer]) => {
+        const splitPosition = id.lastIndexOf('.');
+        const pluginId = id.substring(0, splitPosition);
+        const propertyName = id.substring(splitPosition + 1);
+        if (!agg[pluginId]) {
+          agg[pluginId] = {};
+        }
+        if (!agg[pluginId][propertyName] && renderer.fieldRenderer) {
+          agg[pluginId][propertyName] = renderer.fieldRenderer;
+        }
+        return agg;
+      }, {}),
+    [editorRegistry]
+  );
+
+  if (!activePluginId && !filterPlugin) {
+    return <SettingsEditorPlaceholder translator={translator} />;
+  }
 
   return (
     <div className="jp-SettingsPanel" ref={wrapperRef}>
       {settings.map(pluginSettings => {
         // Pass filtered results to SettingsFormEditor to only display filtered fields.
-        const filtered = filterPlugin(pluginSettings.plugin);
+        const filtered = filterPlugin
+          ? filterPlugin(pluginSettings.plugin)
+          : null;
         // If filtered results are an array, only show if the array is non-empty.
-        if (filtered !== null && filtered.length === 0) {
+        if (
+          (activePluginId && activePluginId !== pluginSettings.id) ||
+          (filtered !== null && filtered.length === 0)
+        ) {
           return undefined;
         }
         return (
           <div
-            ref={editorRefs[pluginSettings.id]}
             className="jp-SettingsForm"
             key={`${pluginSettings.id}SettingsEditor`}
           >
             <SettingsFormEditor
-              isCollapsed={pluginSettings.id !== expandedPlugin}
-              onCollapseChange={(willCollapse: boolean) => {
-                if (!willCollapse) {
-                  setExpandedPlugin(pluginSettings.id);
-                } else if (pluginSettings.id === expandedPlugin) {
-                  setExpandedPlugin(null);
-                }
-              }}
               filteredValues={filtered}
               settings={pluginSettings}
-              renderers={editorRegistry.renderers}
+              renderers={renderers}
               hasError={(error: boolean) => {
                 hasError(pluginSettings.id, error);
               }}

@@ -10,8 +10,8 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 import {
-  FormComponentRegistry,
-  IFormComponentRegistry,
+  FormRendererRegistry,
+  IFormRendererRegistry,
   ILabIconManager
 } from '@jupyterlab/ui-components';
 
@@ -21,6 +21,7 @@ import {
  */
 const labiconManager: JupyterFrontEndPlugin<ILabIconManager> = {
   id: '@jupyterlab/ui-components-extension:labicon-manager',
+  description: 'Provides the icon manager.',
   provides: ILabIconManager,
   autoStart: true,
   activate: (app: JupyterFrontEnd) => {
@@ -29,16 +30,18 @@ const labiconManager: JupyterFrontEndPlugin<ILabIconManager> = {
 };
 
 /**
- * Sets up the component registry to be used by the FormEditor component.
+ * Sets up the renderer registry to be used by the FormEditor component.
  */
-const registryPlugin: JupyterFrontEndPlugin<IFormComponentRegistry> = {
-  id: '@jupyterlab/settingeditor-extension:form-registry',
-  provides: IFormComponentRegistry,
-  autoStart: true,
-  activate: (app: JupyterFrontEnd): IFormComponentRegistry => {
-    const editorRegistry = new FormComponentRegistry();
-    return editorRegistry;
-  }
-};
+const formRendererRegistryPlugin: JupyterFrontEndPlugin<IFormRendererRegistry> =
+  {
+    id: '@jupyterlab/ui-components-extension:form-renderer-registry',
+    description: 'Provides the settings form renderer registry.',
+    provides: IFormRendererRegistry,
+    autoStart: true,
+    activate: (app: JupyterFrontEnd): IFormRendererRegistry => {
+      const formRendererRegistry = new FormRendererRegistry();
+      return formRendererRegistry;
+    }
+  };
 
-export default [labiconManager, registryPlugin];
+export default [labiconManager, formRendererRegistryPlugin];

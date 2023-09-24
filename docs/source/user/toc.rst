@@ -1,3 +1,6 @@
+.. Copyright (c) Jupyter Development Team.
+.. Distributed under the terms of the Modified BSD License.
+
 .. _toc:
 
 Table Of Contents
@@ -14,6 +17,7 @@ In the sidebar panel, you can number headings, collapse sections, and navigate i
 Here is an animation showing the table of content use with a notebook:
 
 .. image:: ./images/toc/toc.gif
+    :alt: A GIF displaying how to use the table of contents feature within a notebook. It toggles which cells types are listed and toggles expanding and collapsing headings.
 
 The table of contents will be automatically generated for your notebook by taking all the
 headings from your markdown cells. Each listed section will be linked to the actual section
@@ -36,6 +40,7 @@ option via the *More actions* button in the table of contents toolbar. Here is a
 showing its use:
 
 .. image:: ./images/toc/numberingH1.gif
+    :alt: A GIF showing how to toggle Automatic section numbering for headings within a notebook. Clicking the button instantly applies multilevel numbering to each heading.
 
 ------------------------------------------------------------------------------------------------------------
 
@@ -75,6 +80,7 @@ The table of contents behavior can be modified via settings which can be set in 
 * **numberingH1** : Whether to number the first-level headings (``h1``) or not.
 * **numberHeaders** : Whether to number the headings or not.
 * **syncCollapseState** : Whether to synchronize the cell and the table of contents collapse state or not.
+* **baseNumbering** : Starting point for heading numbering (default: 1).
 
 .. note::
 

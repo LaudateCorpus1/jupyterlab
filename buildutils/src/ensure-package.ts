@@ -68,7 +68,12 @@ export async function ensurePackage(
   const cssImports = options.cssImports || [];
   const cssModuleImports = options.cssModuleImports || [];
   const differentVersions = options.differentVersions || [];
+  const backwardVersions = options.backwardVersions ?? {};
   const isPrivate = data.private == true;
+
+  const hasBackwardCompatibilities = Object.keys(backwardVersions).includes(
+    data.name
+  );
 
   // Verify dependencies are consistent.
   let promises = Object.keys(deps).map(async name => {
@@ -80,9 +85,50 @@ export async function ensurePackage(
       seenDeps[name] = await getDependency(name);
     }
     if (deps[name] !== seenDeps[name]) {
-      messages.push(`Updated dependency: ${name}@${seenDeps[name]}`);
+      const oneOf =
+        deps[name].includes('||') &&
+        deps[name]
+          .split(/\|\|/)
+          .map(v => v.trim())
+          .includes(seenDeps[name]);
+
+      if (!oneOf) {
+        if (
+          hasBackwardCompatibilities &&
+          Object.keys(backwardVersions[data.name]).includes(name)
+        ) {
+          messages.push(
+            `Updated dependency: ${name}@${
+              backwardVersions[data.name][name]
+            } || ${seenDeps[name]}`
+          );
+          deps[name] = `${backwardVersions[data.name][name]} || ${
+            seenDeps[name]
+          }`;
+        } else {
+          messages.push(`Updated dependency: ${name}@${seenDeps[name]}`);
+          deps[name] = seenDeps[name];
+        }
+      }
     }
-    deps[name] = seenDeps[name];
+
+    if (
+      hasBackwardCompatibilities &&
+      Object.keys(backwardVersions[data.name]).includes(name)
+    ) {
+      const oneOf = deps[name]
+        .split(/\|\|/)
+        .map(v => v.trim())
+        .includes(backwardVersions[data.name][name]);
+      if (!oneOf) {
+        messages.push(
+          `Updated backward dependency: ${name}@${
+            backwardVersions[data.name][name]
+          } || ${deps[name]}`
+        );
+        deps[name] = `${backwardVersions[data.name][name]} || ${deps[name]}`;
+      }
+    }
   });
 
   await Promise.all(promises);
@@ -97,9 +143,17 @@ export async function ensurePackage(
       seenDeps[name] = await getDependency(name);
     }
     if (devDeps[name] !== seenDeps[name]) {
-      messages.push(`Updated devDependency: ${name}@${seenDeps[name]}`);
+      const oneOf =
+        devDeps[name].includes('||') &&
+        devDeps[name]
+          .split(/\|\|/)
+          .map(v => v.trim())
+          .includes(seenDeps[name]);
+      if (!oneOf) {
+        messages.push(`Updated devDependency: ${name}@${seenDeps[name]}`);
+        devDeps[name] = seenDeps[name];
+      }
     }
-    devDeps[name] = seenDeps[name];
   });
 
   await Promise.all(promises);
@@ -140,23 +194,29 @@ export async function ensurePackage(
     data.name !== '@jupyterlab/codemirror'
   ) {
     imports.forEach(importStr => {
-      if (importStr.indexOf('.css') !== -1) {
-        messages.push('CSS imports are not allowed source files');
+      if (
+        importStr.indexOf('.css') !== -1 &&
+        importStr.indexOf('.raw.css') === -1
+      ) {
+        messages.push(
+          'CSS imports are not allowed source files unless using `.raw.css` extension'
+        );
       }
     });
   }
 
-  let names: string[] = Array.from(new Set(imports)).sort();
-  names = names.map(function (name) {
-    const parts = name.split('/');
-    if (name.indexOf('@') === 0) {
-      return parts[0] + '/' + parts[1];
-    }
-    if (parts[0].indexOf('!') !== -1) {
-      parts[0] = parts[0].slice(parts[0].lastIndexOf('!') + 1);
-    }
-    return parts[0];
-  });
+  const names = Array.from(new Set(imports))
+    .sort()
+    .map(name => {
+      const parts = name.split('/');
+      if (name.indexOf('@') === 0) {
+        return parts[0] + '/' + parts[1];
+      }
+      if (parts[0].indexOf('!') !== -1) {
+        parts[0] = parts[0].slice(parts[0].lastIndexOf('!') + 1);
+      }
+      return parts[0];
+    });
 
   // Look for imports with no dependencies.
   promises = names.map(async name => {
@@ -177,60 +237,63 @@ export async function ensurePackage(
 
   await Promise.all(promises);
 
-  // Template the CSS index file.
-  if (
-    usesTS &&
-    (cssImports.length > 0 ||
-      fs.existsSync(path.join(pkgPath, 'style/base.css')))
-  ) {
-    const funcName = 'ensurePackage';
-    const cssIndexContents = [
-      utils.fromTemplate(HEADER_TEMPLATE, { funcName }, { end: '' }),
-      ...cssImports.map(x => `@import url('~${x}');`),
-      ''
-    ];
-    if (fs.existsSync(path.join(pkgPath, 'style/base.css'))) {
-      cssIndexContents.push("@import url('./base.css');\n");
-    }
-
-    // write out cssIndexContents, if needed
-    const cssIndexPath = path.join(pkgPath, 'style/index.css');
-    if (!fs.existsSync(cssIndexPath)) {
-      fs.ensureFileSync(cssIndexPath);
-    }
-    messages.push(
-      ...ensureFile(cssIndexPath, cssIndexContents.join('\n'), false)
-    );
-  }
-
-  // Template the style module index file.
-  if (
-    usesTS &&
-    (cssModuleImports.length > 0 ||
-      fs.existsSync(path.join(pkgPath, 'style/base.css')))
-  ) {
-    const funcName = 'ensurePackage';
-    const jsIndexContents = [
-      utils.fromTemplate(HEADER_TEMPLATE, { funcName }, { end: '' }),
-      ...cssModuleImports.map(x => `import '${x}';`),
-      ''
-    ];
-    if (fs.existsSync(path.join(pkgPath, 'style/base.css'))) {
-      jsIndexContents.push("import './base.css';\n");
-    }
-
-    // write out jsIndexContents, if needed
-    const jsIndexPath = path.join(pkgPath, 'style/index.js');
-    if (!fs.existsSync(jsIndexPath)) {
-      fs.ensureFileSync(jsIndexPath);
-    }
-    messages.push(
-      ...ensureFile(jsIndexPath, jsIndexContents.join('\n'), false)
-    );
-  }
-
-  // Look for unused packages
   if (usesTS) {
+    if (
+      cssImports.length > 0 ||
+      fs.existsSync(path.join(pkgPath, 'style/base.css'))
+    ) {
+      const funcName = 'ensurePackage';
+
+      // Template the CSS index file.
+      const cssIndexContents = [
+        utils.fromTemplate(HEADER_TEMPLATE, { funcName }, { end: '' }),
+        ...cssImports.map(x => `@import url('~${x}');`)
+      ];
+      if (fs.existsSync(path.join(pkgPath, 'style/base.css'))) {
+        cssIndexContents.push("@import url('./base.css');");
+      }
+      // Add final line return
+      cssIndexContents.push('');
+
+      // write out cssIndexContents, if needed
+      const cssIndexPath = path.join(pkgPath, 'style/index.css');
+      if (!fs.existsSync(cssIndexPath)) {
+        fs.ensureFileSync(cssIndexPath);
+      }
+      messages.push(
+        ...(await ensureFile(cssIndexPath, cssIndexContents.join('\n'), false))
+      );
+
+      // Template the style module index file.
+      const jsIndexContents = [
+        utils.fromTemplate(HEADER_TEMPLATE, { funcName }, { end: '' }),
+        ...cssModuleImports.map(x => `import '${x}';`),
+        ''
+      ];
+      if (fs.existsSync(path.join(pkgPath, 'style/base.css'))) {
+        jsIndexContents.push("import './base.css';\n");
+      }
+
+      // write out jsIndexContents, if needed
+      const jsIndexPath = path.join(pkgPath, 'style/index.js');
+      if (!fs.existsSync(jsIndexPath)) {
+        fs.ensureFileSync(jsIndexPath);
+      }
+      messages.push(
+        ...(await ensureFile(jsIndexPath, jsIndexContents.join('\n'), false))
+      );
+    } else {
+      if (
+        fs.existsSync(path.join(pkgPath, 'style')) &&
+        fs
+          .readdirSync(path.join(pkgPath, 'style'))
+          .filter(f => !['index.css', 'index.js'].includes(f)).length === 0
+      ) {
+        fs.removeSync(path.join(pkgPath, 'style'));
+      }
+    }
+
+    // Look for unused packages
     Object.keys(deps).forEach(name => {
       if (options.noUnused === false) {
         return;
@@ -240,7 +303,7 @@ export async function ensurePackage(
       }
       const isTest = data.name.indexOf('test') !== -1;
       if (isTest) {
-        const testLibs = ['jest', 'ts-jest', '@jupyterlab/testutils'];
+        const testLibs = ['jest', 'ts-jest', '@jupyterlab/testing'];
         if (testLibs.indexOf(name) !== -1) {
           return;
         }
@@ -483,40 +546,75 @@ export async function ensurePackage(
     return files;
   }
 
-  // Ensure style files are included by pattern.
-  const styleFiles = recurseDir(path.join(pkgPath, 'style'), []);
-  styleFiles.forEach(fpath => {
-    const basePath = fpath.slice(pkgPath.length + 1);
-    let found = false;
-    filePatterns.forEach(fpattern => {
-      if (minimatch.default(basePath, fpattern)) {
-        found = true;
-      }
-    });
-    if (!found && !isPrivate) {
-      messages.push(`File ${basePath} not included in files`);
-    }
-  });
-
-  // Ensure source TS files are included in lib (.js, .js.map, .d.ts)
-  const srcFiles = recurseDir(path.join(pkgPath, 'src'), []);
-  srcFiles.forEach(fpath => {
-    const basePath = fpath.slice(pkgPath.length + 1).replace('src', 'lib');
-    ['.js', '.js.map', '.d.ts'].forEach(ending => {
+  if (!isPrivate) {
+    // Ensure style files are included by pattern.
+    const styleFiles = recurseDir(path.join(pkgPath, 'style'), []);
+    styleFiles.forEach(fpath => {
+      const basePath = fpath.slice(pkgPath.length + 1);
       let found = false;
-      const targetPattern = basePath
-        .replace('.tsx', ending)
-        .replace('.ts', ending);
       filePatterns.forEach(fpattern => {
-        if (minimatch.default(targetPattern, fpattern)) {
+        if (minimatch.default(basePath, fpattern)) {
           found = true;
         }
       });
-      if (!found && !isPrivate) {
-        messages.push(`File ${targetPattern} not included in files`);
+      if (!found) {
+        messages.push(`File ${basePath} not included in files`);
       }
     });
-  });
+
+    // Ensure source TS files are included in lib (.js, .js.map, .d.ts)
+    const srcFiles = recurseDir(path.join(pkgPath, 'src'), []);
+    srcFiles.forEach(fpath => {
+      const basePath = fpath
+        .slice(pkgPath.length + 1)
+        .replace('src', 'lib')
+        .split(path.sep)
+        .join('/');
+      ['.js', '.js.map', '.d.ts'].forEach(ending => {
+        let found = false;
+        const targetPattern = basePath.replace(/\.tsx?$/g, ending);
+        filePatterns.forEach(fpattern => {
+          if (minimatch.default(targetPattern, fpattern)) {
+            found = true;
+          }
+        });
+        if (!found) {
+          messages.push(`File ${targetPattern} not included in files`);
+        }
+      });
+    });
+
+    // Ensure source files are all included
+    let anySourceMatch = false;
+    const missingSourceMessages: string[] = [];
+    srcFiles.forEach(fpath => {
+      const basepath = fpath
+        .slice(pkgPath.length + 1)
+        .split(path.sep)
+        .join('/');
+      let found = false;
+      filePatterns.forEach(fpattern => {
+        if (minimatch.default(basepath, fpattern)) {
+          found = true;
+        }
+      });
+      anySourceMatch = anySourceMatch || found;
+      if (!found) {
+        missingSourceMessages.push(
+          `Source file ${basepath} not included in files`
+        );
+      }
+    });
+    if (srcFiles.length && !anySourceMatch) {
+      messages.push('Found no src file inclusion, adding src/**/*.{ts,tsx}');
+      if (!data.files) {
+        data.files = [];
+      }
+      data.files.push('src/**/*.{ts,tsx}');
+    } else {
+      messages.push(...missingSourceMessages);
+    }
+  }
 
   // Ensure dependencies and dev dependencies.
   data.dependencies = deps;
@@ -545,13 +643,12 @@ export async function ensurePackage(
     delete data.scripts.prepublishOnly;
   }
 
-  // If the package is not in `packages` or does not use `tsc` in its
+  // If the package does not use `tsc` in its
   // build script, add a `build:all` target
   const buildScript = data.scripts?.build || '';
   if (
-    buildScript &&
-    ((pkgPath.indexOf('packages') == -1 && pkgPath.indexOf('template') == -1) ||
-      buildScript.indexOf('tsc') == -1) &&
+    path.basename(pkgPath) != 'galata' &&
+    buildScript?.indexOf('tsc') === -1 &&
     !isPrivate
   ) {
     data.scripts['build:all'] = 'npm run build';
@@ -669,7 +766,9 @@ export async function ensureUiComponents(
     HEADER_TEMPLATE + ICON_IMPORTS_TEMPLATE,
     { funcName, svgImportStatements, labiconConstructions }
   );
-  messages.push(...ensureFile(iconImportsPath, iconImportsContents, false));
+  messages.push(
+    ...(await ensureFile(iconImportsPath, iconImportsContents, false))
+  );
 
   /* support for deprecated icon CSS classes */
   const iconCSSDir = path.join(pkgPath, 'style');
@@ -703,7 +802,9 @@ export async function ensureUiComponents(
     HEADER_TEMPLATE + ICON_CSS_CLASSES_TEMPLATE,
     { funcName, iconCSSUrls, iconCSSDeclarations }
   );
-  messages.push(...ensureFile(iconCSSClassesPath, iconCSSClassesContent));
+  messages.push(
+    ...(await ensureFile(iconCSSClassesPath, iconCSSClassesContent))
+  );
 
   return messages;
 }
@@ -761,6 +862,11 @@ export interface IEnsurePackageOptions {
    * Packages which are allowed to have multiple versions pulled in
    */
   differentVersions?: string[];
+
+  /**
+   * Older versions supported by core packages in addition to the latest.
+   */
+  backwardVersions?: Record<string, Record<string, string>>;
 }
 
 /**
@@ -779,11 +885,11 @@ export interface IEnsurePackageOptions {
  *
  * @returns a string array with 0 or 1 messages.
  */
-function ensureFile(
+async function ensureFile(
   fpath: string,
   contents: string,
   prettify: boolean = true
-): string[] {
+): Promise<string[]> {
   const messages: string[] = [];
 
   if (!fs.existsSync(fpath)) {
@@ -796,7 +902,7 @@ function ensureFile(
 
   // (maybe) run the newly generated contents through prettier before comparing
   let formatted = prettify
-    ? prettier.format(contents, { filepath: fpath, singleQuote: true })
+    ? await prettier.format(contents, { filepath: fpath, singleQuote: true })
     : contents;
 
   const prev = fs.readFileSync(fpath, { encoding: 'utf8' });

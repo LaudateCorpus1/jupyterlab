@@ -18,7 +18,7 @@ import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { Kernel, KernelMessage, Session } from '@jupyterlab/services';
 import { ITooltipManager, Tooltip } from '@jupyterlab/tooltip';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
-import { find, toArray } from '@lumino/algorithm';
+import { find } from '@lumino/algorithm';
 import { JSONObject } from '@lumino/coreutils';
 import { Widget } from '@lumino/widgets';
 
@@ -40,6 +40,7 @@ namespace CommandIDs {
  */
 const manager: JupyterFrontEndPlugin<ITooltipManager> = {
   id: '@jupyterlab/tooltip-extension:manager',
+  description: 'Provides the tooltip manager.',
   autoStart: true,
   optional: [ITranslator],
   provides: ITooltipManager,
@@ -88,7 +89,9 @@ const manager: JupyterFrontEndPlugin<ITooltipManager> = {
  * The console tooltip plugin.
  */
 const consoles: JupyterFrontEndPlugin<void> = {
+  // FIXME This should be in @jupyterlab/console-extension
   id: '@jupyterlab/tooltip-extension:consoles',
+  description: 'Adds the tooltip capability to consoles.',
   autoStart: true,
   optional: [ITranslator],
   requires: [ITooltipManager, IConsoleTracker],
@@ -128,7 +131,9 @@ const consoles: JupyterFrontEndPlugin<void> = {
  * The notebook tooltip plugin.
  */
 const notebooks: JupyterFrontEndPlugin<void> = {
+  // FIXME This should be in @jupyterlab/notebook-extension
   id: '@jupyterlab/tooltip-extension:notebooks',
+  description: 'Adds the tooltip capability to notebooks.',
   autoStart: true,
   optional: [ITranslator],
   requires: [ITooltipManager, INotebookTracker],
@@ -168,7 +173,9 @@ const notebooks: JupyterFrontEndPlugin<void> = {
  * The file editor tooltip plugin.
  */
 const files: JupyterFrontEndPlugin<void> = {
+  // FIXME This should be in @jupyterlab/fileeditor-extension
   id: '@jupyterlab/tooltip-extension:files',
+  description: 'Adds the tooltip capability to file editors.',
   autoStart: true,
   optional: [ITranslator],
   requires: [ITooltipManager, IEditorTracker, IRenderMimeRegistry],
@@ -193,7 +200,7 @@ const files: JupyterFrontEndPlugin<void> = {
     // matching path for the file editors.
     const onRunningChanged = (
       sender: Session.IManager,
-      models: Session.IModel[]
+      models: Iterable<Session.IModel>
     ) => {
       editorTracker.forEach(file => {
         const model = find(models, m => file.context.path === m.path);
@@ -221,7 +228,7 @@ const files: JupyterFrontEndPlugin<void> = {
         }
       });
     };
-    onRunningChanged(sessions, toArray(sessions.running()));
+    onRunningChanged(sessions, sessions.running());
     sessions.runningChanged.connect(onRunningChanged);
 
     // Clean up after a widget when it is disposed
@@ -305,7 +312,7 @@ namespace Private {
    */
   export function fetch(options: IFetchOptions): Promise<JSONObject> {
     const { detail, editor, kernel } = options;
-    const code = editor.model.value.text;
+    const code = editor.model.sharedModel.getSource();
     const position = editor.getCursorPosition();
     const offset = Text.jsIndexToCharIndex(editor.getOffsetAt(position), code);
 

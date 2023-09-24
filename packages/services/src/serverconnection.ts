@@ -3,28 +3,13 @@
 
 import { PageConfig, URLExt } from '@jupyterlab/coreutils';
 
-/**
- * Handle the default `fetch` and `WebSocket` providers.
- */
-declare let global: any;
-
-let FETCH: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
-let HEADERS: typeof Headers;
-let REQUEST: typeof Request;
 let WEBSOCKET: typeof WebSocket;
 
 if (typeof window === 'undefined') {
   // Mangle the require statements so it does not get picked up in the
   // browser assets.
-  const fetchMod = require('node-fetch');
-  FETCH = global.fetch ?? fetchMod;
-  REQUEST = global.Request ?? fetchMod.Request;
-  HEADERS = global.Headers ?? fetchMod.Headers;
   WEBSOCKET = require('ws');
 } else {
-  FETCH = fetch;
-  REQUEST = Request;
-  HEADERS = Headers;
   WEBSOCKET = WebSocket;
 }
 
@@ -158,13 +143,15 @@ export namespace ServerConnection {
     static async create(response: Response): Promise<ResponseError> {
       try {
         const data = await response.json();
-        if (data['traceback']) {
-          console.error(data['traceback']);
+        const { message, traceback } = data;
+        if (traceback) {
+          console.error(traceback);
         }
-        if (data['message']) {
-          return new ResponseError(response, data['message']);
-        }
-        return new ResponseError(response);
+        return new ResponseError(
+          response,
+          message ?? ResponseError._defaultMessage(response),
+          traceback ?? ''
+        );
       } catch (e) {
         console.debug(e);
         return new ResponseError(response);
@@ -176,7 +163,7 @@ export namespace ServerConnection {
      */
     constructor(
       response: Response,
-      message = `Invalid response: ${response.status} ${response.statusText}`,
+      message = ResponseError._defaultMessage(response),
       traceback = ''
     ) {
       super(message);
@@ -193,6 +180,10 @@ export namespace ServerConnection {
      * The traceback associated with the error.
      */
     traceback: string;
+
+    private static _defaultMessage(response: Response): string {
+      return `Invalid response: ${response.status} ${response.statusText}`;
+    }
   }
 
   /**
@@ -236,9 +227,9 @@ namespace Private {
 
     return {
       init: { cache: 'no-store', credentials: 'same-origin' },
-      fetch: FETCH,
-      Headers: HEADERS,
-      Request: REQUEST,
+      fetch,
+      Headers,
+      Request,
       WebSocket: WEBSOCKET,
       token: PageConfig.getToken(),
       appUrl: PageConfig.getOption('appUrl'),

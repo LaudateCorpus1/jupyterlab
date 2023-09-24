@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Jupyter Development Team.
+ * Distributed under the terms of the Modified BSD License.
+ */
+
 import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
@@ -18,6 +23,7 @@ const TOPBAR_FACTORY = 'TopBar';
  */
 export const topbar: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlab/application-extension:top-bar',
+  description: 'Adds a toolbar to the top area (next to the main menu bar).',
   autoStart: true,
   requires: [ISettingRegistry, IToolbarWidgetRegistry],
   optional: [ITranslator],

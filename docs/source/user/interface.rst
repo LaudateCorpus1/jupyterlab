@@ -1,3 +1,6 @@
+.. Copyright (c) Jupyter Development Team.
+.. Distributed under the terms of the Modified BSD License.
+
 .. _interface:
 
 The JupyterLab Interface
@@ -18,7 +21,7 @@ cell tools inspector <notebook>`, and the :ref:`tabs list <tabs>`.
 .. image:: ../images/interface-jupyterlab.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot of the JupyterLab interface. The main work area is in the middle section of the interface. There is also a left sidebar and a top menu bar.
+   :alt: A screenshot of the default JupyterLab interface. The main work area is in the middle. There is also a left sidebar and a top menu bar.
 
 JupyterLab sessions always reside in a :ref:`workspace <url-workspaces-ui>`.
 Workspaces contain the state of JupyterLab: the files that are currently open,
@@ -69,7 +72,7 @@ The left sidebar contains a number of commonly-used tabs including:
 .. image:: ../images/interface-left.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot of the primary JupyterLab sidebar showing a variety of files in the file browser.
+   :alt: The left JupyterLab sidebar showing a variety of files in the file browser.
 
 .. _right-sidebar:
 
@@ -81,7 +84,7 @@ The right sidebar contains:
 .. image:: ../images/interface-right.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot of the secondary JupyterLab sidebar showing the property inspector.
+   :alt: The right JupyterLab sidebar showing the property inspector.
 
 The column that allows to switch between tabs is called Activity Bar in JupyterLab.
 
@@ -133,14 +136,14 @@ activities in the main work area:
 .. image:: ../images/interface-tabs.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot of the tabs panel in JupyterLab that lists some sample documents.
+   :alt: The tabs panel in JupyterLab with a list of sample documents.
 
 The same information is also available in the Tabs menu:
 
 .. image:: ../images/interface-tabs-menu.png
    :align: center
    :class: jp-screenshot
-   :alt: A screenshot of the tabs menu in JupyterLab with a list of sample documents.
+   :alt: The tabs menu in JupyterLab with a list of sample documents.
 
 .. _tabs-singledocument:
 
@@ -157,6 +160,20 @@ Toggle Simple Interface mode using the View menu:
 
 When you leave Simple Interface mode, the original layout of the main
 area is restored.
+
+Searching
+---------
+
+JupyterLab has an advanced built-in search plugin for finding text within a
+notebook or other document, which uses the ``Ctrl+F`` (``Cmd+F`` for macOS) shortcut by default.
+
+Your browser's ``find`` function will give unexpected results because it doesn't have
+access to the full content of a document (by default), but you can still use your browser find
+function from the browser menu if you want, or you can disable the built-in search
+shortcut using the Advanced Settings Editor.
+
+Alternatively, you can disable windowed notebook rendering to expose the full
+document content to the browser at the expense of performance.
 
 Context Menus
 -------------

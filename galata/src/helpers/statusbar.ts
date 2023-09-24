@@ -8,7 +8,10 @@ import { MenuHelper } from './menu';
  * Status Bar helpers
  */
 export class StatusBarHelper {
-  constructor(readonly page: Page, readonly menu: MenuHelper) {}
+  constructor(
+    readonly page: Page,
+    readonly menu: MenuHelper
+  ) {}
 
   /**
    * Whether the status bar is visible or not
@@ -20,7 +23,7 @@ export class StatusBarHelper {
       const statusBar = document.querySelector(
         '#jp-main-statusbar'
       ) as HTMLElement;
-      return window.galataip.isElementVisible(statusBar);
+      return window.galata.isElementVisible(statusBar);
     });
   }
 

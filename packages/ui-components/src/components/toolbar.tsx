@@ -1,8 +1,8 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import { ITranslator } from '@jupyterlab/translation';
-import { find, IIterator, map, some } from '@lumino/algorithm';
+import { ITranslator, nullTranslator } from '@jupyterlab/translation';
+import { find, map, some } from '@lumino/algorithm';
 import { CommandRegistry } from '@lumino/commands';
 import { ReadonlyJSONObject } from '@lumino/coreutils';
 import { Message, MessageLoop } from '@lumino/messaging';
@@ -175,7 +175,7 @@ export class Toolbar<T extends Widget = Widget> extends Widget {
    *
    * @returns An iterator over the toolbar item names.
    */
-  names(): IIterator<string> {
+  names(): IterableIterator<string> {
     const layout = this.layout as ToolbarLayout;
     return map(layout.widgets, widget => {
       return Private.nameProperty.get(widget);
@@ -703,13 +703,13 @@ export function ToolbarButtonComponent(
  * Adds the toolbar button class to the toolbar widget.
  * @param w Toolbar button widget.
  */
-export function addToolbarButtonClass(w: Widget): Widget {
+export function addToolbarButtonClass<T extends Widget = Widget>(w: T): T {
   w.addClass('jp-ToolbarButton');
   return w;
 }
 
 /**
- * Phosphor Widget version of static ToolbarButtonComponent.
+ * Lumino Widget version of static ToolbarButtonComponent.
  */
 export class ToolbarButton extends ReactWidget {
   /**
@@ -825,6 +825,10 @@ export namespace CommandToolbarButtonComponent {
      * Overrides command label
      */
     label?: string;
+    /**
+     * Overrides command caption
+     */
+    caption?: string;
   }
 }
 
@@ -961,14 +965,17 @@ class ToolbarPopupOpener extends ToolbarButton {
   /**
    *  Create a new popup opener
    */
-  constructor() {
+  constructor(props: ToolbarButtonComponent.IProps = {}) {
+    const trans = (props.translator || nullTranslator).load('jupyterlab');
     super({
       icon: ellipsesIcon,
       onClick: () => {
         this.handleClick();
-      }
+      },
+      tooltip: trans.__('More commands')
     });
     this.addClass('jp-Toolbar-responsive-opener');
+
     this.popup = new ToolbarPopup();
   }
 
@@ -1056,10 +1063,7 @@ namespace Private {
 
     const iconClass = commands.iconClass(id, args);
     const iconLabel = commands.iconLabel(id, args);
-    // DEPRECATED: remove _icon when lumino 2.0 is adopted
-    // if icon is aliasing iconClass, don't use it
-    const _icon = options.icon ?? commands.icon(id, args);
-    const icon = _icon === iconClass ? undefined : _icon;
+    const icon = options.icon ?? commands.icon(id, args);
 
     const label = commands.label(id, args);
     let className = commands.className(id, args);
@@ -1076,7 +1080,7 @@ namespace Private {
     // Shows hot keys in tooltips
     const binding = commands.keyBindings.find(b => b.command === id);
     if (binding) {
-      const ks = CommandRegistry.formatKeystroke(binding.keys.join(' '));
+      const ks = binding.keys.map(CommandRegistry.formatKeystroke).join(', ');
       tooltip = `${tooltip} (${ks})`;
     }
     const onClick = () => {
@@ -1089,7 +1093,7 @@ namespace Private {
       dataset: { 'data-command': options.id },
       icon,
       iconClass,
-      tooltip,
+      tooltip: options.caption ?? tooltip,
       onClick,
       enabled,
       label: options.label ?? label

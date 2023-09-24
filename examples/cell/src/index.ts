@@ -13,19 +13,35 @@ import '@jupyterlab/theme-light-extension/style/theme.css';
 import '@jupyterlab/completer/style/index.css';
 import '../index.css';
 
-import { Toolbar as AppToolbar, SessionContext } from '@jupyterlab/apputils';
-import { Toolbar } from '@jupyterlab/ui-components';
+import {
+  Toolbar as AppToolbar,
+  SessionContext,
+  SessionContextDialogs
+} from '@jupyterlab/apputils';
+import {
+  refreshIcon,
+  stopIcon,
+  Toolbar,
+  ToolbarButton
+} from '@jupyterlab/ui-components';
 
-import { CodeCell, CodeCellModel } from '@jupyterlab/cells';
+import { Cell, CodeCell, CodeCellModel } from '@jupyterlab/cells';
 
-import { CodeMirrorMimeTypeService } from '@jupyterlab/codemirror';
+import {
+  CodeMirrorEditorFactory,
+  CodeMirrorMimeTypeService,
+  EditorExtensionRegistry,
+  EditorLanguageRegistry,
+  EditorThemeRegistry,
+  ybinding
+} from '@jupyterlab/codemirror';
 
 import {
   Completer,
   CompleterModel,
   CompletionHandler,
-  ConnectorProxy,
-  KernelCompleterProvider
+  KernelCompleterProvider,
+  ProviderReconciliator
 } from '@jupyterlab/completer';
 
 import {
@@ -38,6 +54,8 @@ import {
   KernelSpecManager,
   SessionManager
 } from '@jupyterlab/services';
+
+import { IYText } from '@jupyter/ydoc';
 
 import { CommandRegistry } from '@lumino/commands';
 
@@ -52,7 +70,46 @@ function main(): void {
     specsManager,
     name: 'Example'
   });
-  const mimeService = new CodeMirrorMimeTypeService();
+  const editorExtensions = () => {
+    const themes = new EditorThemeRegistry();
+    EditorThemeRegistry.getDefaultThemes().forEach(theme => {
+      themes.addTheme(theme);
+    });
+    const registry = new EditorExtensionRegistry();
+
+    EditorExtensionRegistry.getDefaultExtensions({ themes }).forEach(
+      extensionFactory => {
+        registry.addExtension(extensionFactory);
+      }
+    );
+    registry.addExtension({
+      name: 'shared-model-binding',
+      factory: options => {
+        const sharedModel = options.model.sharedModel as IYText;
+        return EditorExtensionRegistry.createImmutableExtension(
+          ybinding({
+            ytext: sharedModel.ysource,
+            undoManager: sharedModel.undoManager ?? undefined
+          })
+        );
+      }
+    });
+    return registry;
+  };
+  const languages = new EditorLanguageRegistry();
+  EditorLanguageRegistry.getDefaultLanguages()
+    .filter(language =>
+      ['ipython', 'julia', 'python'].includes(language.name.toLowerCase())
+    )
+    .forEach(language => {
+      languages.addLanguage(language);
+    });
+
+  const factoryService = new CodeMirrorEditorFactory({
+    extensions: editorExtensions(),
+    languages
+  });
+  const mimeService = new CodeMirrorMimeTypeService(languages);
 
   // Initialize the command registry with the bindings.
   const commands = new CommandRegistry();
@@ -71,15 +128,22 @@ function main(): void {
   const rendermime = new RenderMimeRegistry({ initialFactories });
 
   const cellWidget = new CodeCell({
+    contentFactory: new Cell.ContentFactory({
+      editorFactory: factoryService.newInlineEditor.bind(factoryService)
+    }),
     rendermime,
-    model: new CodeCellModel({})
+    model: new CodeCellModel()
   }).initializeState();
 
   // Handle the mimeType for the current kernel asynchronously.
   sessionContext.kernelChanged.connect(() => {
     void sessionContext.session?.kernel?.info.then(info => {
       const lang = info.language_info;
-      const mimeType = mimeService.getMimeTypeByLanguage(lang);
+      const mimeTypes = mimeService.getMimeTypeByLanguage(lang);
+      const mimeType =
+        Array.isArray(mimeTypes) && mimeTypes.length !== 0
+          ? mimeTypes[0]
+          : mimeTypes;
       cellWidget.model.mimeType = mimeType;
     });
   });
@@ -93,21 +157,21 @@ function main(): void {
   const completer = new Completer({ editor, model });
   const timeout = 1000;
   const provider = new KernelCompleterProvider();
-  const connector = new ConnectorProxy(
-    { widget: cellWidget, editor, session: sessionContext.session },
-    [provider],
-    timeout
-  );
-  const handler = new CompletionHandler({ completer, connector });
+  const reconciliator = new ProviderReconciliator({
+    context: { widget: cellWidget, editor, session: sessionContext.session },
+    providers: [provider],
+    timeout: timeout
+  });
+  const handler = new CompletionHandler({ completer, reconciliator });
 
   //sessionContext.session?.kernel.
   void sessionContext.ready.then(() => {
     const provider = new KernelCompleterProvider();
-    handler.connector = new ConnectorProxy(
-      { widget: cellWidget, editor, session: sessionContext.session },
-      [provider],
-      timeout
-    );
+    handler.reconciliator = new ProviderReconciliator({
+      context: { widget: cellWidget, editor, session: sessionContext.session },
+      providers: [provider],
+      timeout: timeout
+    });
   });
 
   // Set the handler's editor.
@@ -122,10 +186,29 @@ function main(): void {
   toolbar.addItem('spacer', Toolbar.createSpacerItem());
   toolbar.addItem(
     'interrupt',
-    AppToolbar.createInterruptButton(sessionContext)
+    new ToolbarButton({
+      icon: stopIcon,
+      onClick: () => {
+        void sessionContext.session?.kernel?.interrupt();
+      },
+      tooltip: 'Interrupt the kernel'
+    })
   );
-  toolbar.addItem('restart', AppToolbar.createRestartButton(sessionContext));
-  toolbar.addItem('name', AppToolbar.createKernelNameItem(sessionContext));
+  const dialogs = new SessionContextDialogs();
+  toolbar.addItem(
+    'restart',
+    new ToolbarButton({
+      icon: refreshIcon,
+      onClick: () => {
+        void dialogs.restart(sessionContext);
+      },
+      tooltip: 'Restart the kernel'
+    })
+  );
+  toolbar.addItem(
+    'name',
+    AppToolbar.createKernelNameItem(sessionContext, dialogs)
+  );
   toolbar.addItem('status', AppToolbar.createKernelStatusItem(sessionContext));
 
   // Lay out the widgets.
